@@ -34,6 +34,9 @@ yarn-error.*
 .env
 .env*.local
 
+# scripts de diagnostico: leen .env y peganle a la API de produccion
+scripts/probe-*.ps1
+
 # typescript
 *.tsbuildinfo
 
