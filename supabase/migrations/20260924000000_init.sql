@@ -5,13 +5,20 @@
 
 create extension if not exists "pgcrypto";
 
+-- Privilegios de arranque.
+--
+-- 'anon' NO recibe privilegios de tabla: si los recibiera, cualquier request
+-- sin sesion llegaria hasta RLS. Con RLS eso no equivale a leer datos, pero si
+-- a enumerar que tablas existen y a disparar errores de policy (la 42P17 de
+-- las tablas huerfanas). La politica real la aplican los column grants de
+-- 20260928000000_security_hardening.sql, que si le dan acceso a 'authenticated'.
 grant usage on schema public to anon, authenticated;
-grant all on all tables in schema public to anon, authenticated;
-grant all on all sequences in schema public to anon, authenticated;
-grant all on all routines in schema public to anon, authenticated;
-alter default privileges in schema public grant all on tables to anon, authenticated;
-alter default privileges in schema public grant all on sequences to anon, authenticated;
-alter default privileges in schema public grant all on routines to anon, authenticated;
+grant all on all tables in schema public to authenticated;
+grant all on all sequences in schema public to authenticated;
+grant all on all routines in schema public to authenticated;
+alter default privileges in schema public grant all on tables to authenticated;
+alter default privileges in schema public grant all on sequences to authenticated;
+alter default privileges in schema public grant all on routines to authenticated;
 
 -- ============================================================
 -- Helper functions (security definer, bypass RLS, no recursion)
@@ -91,7 +98,16 @@ begin
 end;
 $$;
 
--- New user → profile row. Role taken from sign-up metadata ('cliente' por defecto).
+-- New user → profile row.
+--
+-- Version fail-closed: el rol NUNCA sale del metadata del signup, siempre
+-- 'cliente'. La version de 20260927000000_staff_allowlist.sql es la que honra
+-- role='profe', y solo si el email esta en staff_allowlist.
+--
+-- No se borra esta definicion porque el trigger de abajo la necesita para
+-- existir: eliminarla haria fallar el CREATE TRIGGER en un reset limpio.
+-- Lo que se elimina es la escalada de privilegios, no la presencia de la
+-- funcion.
 create or replace function public.handle_new_user()
 returns trigger
 language plpgsql
@@ -104,7 +120,7 @@ begin
     new.id,
     new.email,
     coalesce(new.raw_user_meta_data->>'full_name', split_part(new.email, '@', 1)),
-    case when new.raw_user_meta_data->>'role' = 'profe' then 'profe' else 'cliente' end
+    'cliente'
   );
   return new;
 end;
