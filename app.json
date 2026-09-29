@@ -8,9 +8,14 @@
     "scheme": "appgym",
     "userInterfaceStyle": "dark",
     "ios": {
-      "icon": "./assets/expo.icon"
+      "bundleIdentifier": "com.appgym.app",
+      "icon": "./assets/expo.icon",
+      "config": {
+        "usesNonExemptEncryption": false
+      }
     },
     "android": {
+      "package": "com.appgym.app",
       "adaptiveIcon": {
         "backgroundColor": "#07172E",
         "foregroundImage": "./assets/images/android-icon-foreground.png",
@@ -33,7 +38,14 @@
           "imageWidth": 76
         }
       ],
-      "expo-web-browser"
+      "expo-web-browser",
+      [
+        "expo-secure-store",
+        {
+          "configureAndroidBackup": true,
+          "faceIDPermission": "AppGym usa Face ID para proteger tu sesion."
+        }
+      ]
     ],
     "experiments": {
       "typedRoutes": true,

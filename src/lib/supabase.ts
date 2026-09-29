@@ -1,7 +1,8 @@
 import 'react-native-url-polyfill/auto';
 
-import AsyncStorage from '@react-native-async-storage/async-storage';
 import { createClient } from '@supabase/supabase-js';
+
+import { sessionStorage } from '@/lib/storage';
 
 const supabaseUrl = process.env.EXPO_PUBLIC_SUPABASE_URL;
 const supabaseAnonKey = process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY;
@@ -17,9 +18,11 @@ if (!supabaseUrl || !supabaseAnonKey) {
 const isSsr =
   typeof process !== 'undefined' && !!process.versions && !!process.versions.node;
 
+// La sesion va a SecureStore en nativo (Keychain/Keystore), no a AsyncStorage:
+// ver src/lib/storage.ts
 export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
   auth: {
-    storage: isSsr ? undefined : AsyncStorage,
+    storage: isSsr ? undefined : sessionStorage,
     autoRefreshToken: true,
     persistSession: true,
     detectSessionInUrl: false,
