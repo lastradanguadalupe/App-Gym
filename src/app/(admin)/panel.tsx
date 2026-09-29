@@ -12,17 +12,18 @@ import { Screen } from '@/components/ui/screen';
 import { useSession } from '@/context/session';
 import {
   assignProfe,
-  fetchActiveRoutineForClient,
+  countAlumnos,
   fetchAlumnos,
-  fetchSessions,
+  fetchStudentStats,
   searchClients,
+  type AlumnoStats,
 } from '@/lib/db';
 import { formatMinutes } from '@/lib/format';
 import { Spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
 import type { Profile } from '@/types';
 
-type AlumnoStats = { sessions: number; minutes: number; hasRoutine: boolean };
+const PAGE_SIZE = 20;
 
 export default function AdminHomeScreen() {
   const router = useRouter();
@@ -31,6 +32,8 @@ export default function AdminHomeScreen() {
 
   const [alumnos, setAlumnos] = useState<Profile[]>([]);
   const [stats, setStats] = useState<Record<string, AlumnoStats>>({});
+  const [page, setPage] = useState(0);
+  const [total, setTotal] = useState(0);
   const [loading, setLoading] = useState(true);
   const [query, setQuery] = useState('');
   const [results, setResults] = useState<Pick<Profile, 'id' | 'email' | 'name'>[]>([]);
@@ -42,37 +45,33 @@ export default function AdminHomeScreen() {
   const load = useCallback(async () => {
     if (!profile?.id) return;
     try {
-      const list = await fetchAlumnos(profile.id);
+      // Stats de todos los alumnos en una consulta, no uno por alumno.
+      const [list, totals] = await Promise.all([
+        fetchAlumnos(profile.id, page, PAGE_SIZE),
+        fetchStudentStats(profile.id),
+      ]);
       setAlumnos(list);
-      const entries = await Promise.all(
-        list.map(async (a) => {
-          const [sessions, routine] = await Promise.all([
-            fetchSessions(a.id),
-            fetchActiveRoutineForClient(a.id),
-          ]);
-          return [
-            a.id,
-            {
-              sessions: sessions.length,
-              minutes: sessions.reduce((acc, s) => acc + (s.duration_minutes ?? 0), 0),
-              hasRoutine: !!routine,
-            },
-          ] as const;
-        })
-      );
-      setStats(Object.fromEntries(entries));
+      setStats(totals);
+      setTotal(await countAlumnos(profile.id));
     } catch (e) {
       console.warn('Error cargando alumnos', e);
     } finally {
       setLoading(false);
     }
-  }, [profile]);
+  }, [profile, page]);
 
   useFocusEffect(
     useCallback(() => {
       load();
     }, [load])
   );
+
+  const pages = Math.max(1, Math.ceil(total / PAGE_SIZE));
+
+  function goToPage(next: number) {
+    setLoading(true);
+    setPage(Math.min(Math.max(0, next), pages - 1));
+  }
 
   async function handleSearch() {
     setMessage(null);
@@ -206,7 +205,7 @@ export default function AdminHomeScreen() {
         />
       </View>
 
-      {!alumnos.length ? (
+      {!total ? (
         <EmptyState
           icon="account-group-outline"
           title="Todavía no tenés alumnos"
@@ -215,7 +214,7 @@ export default function AdminHomeScreen() {
       ) : (
         <>
           <ThemedText type="eyebrow" themeColor="textSecondary">
-            Tus alumnos ({alumnos.length})
+            Tus alumnos ({total})
           </ThemedText>
           {alumnos.map((a) => {
             const st = stats[a.id];
@@ -232,7 +231,7 @@ export default function AdminHomeScreen() {
                         ? `${st.sessions} entrenamientos · ${formatMinutes(st.minutes)} · ${
                             st.hasRoutine ? 'con rutina' : 'sin rutina'
                           }`
-                        : 'Cargando...'}
+                        : 'Sin datos'}
                     </ThemedText>
                   </View>
                   <MaterialCommunityIcons name="chevron-right" size={20} color={theme.brandBright} />
@@ -240,6 +239,30 @@ export default function AdminHomeScreen() {
               </Pressable>
             );
           })}
+
+          {pages > 1 ? (
+            <View style={styles.pager}>
+              <Button
+                variant="secondary"
+                label="Anterior"
+                icon="chevron-left"
+                disabled={page === 0}
+                onPress={() => goToPage(page - 1)}
+                style={styles.flex}
+              />
+              <ThemedText type="small" themeColor="textSecondary">
+                {page + 1} / {pages}
+              </ThemedText>
+              <Button
+                variant="secondary"
+                label="Siguiente"
+                icon="chevron-right"
+                disabled={page >= pages - 1}
+                onPress={() => goToPage(page + 1)}
+                style={styles.flex}
+              />
+            </View>
+          ) : null}
         </>
       )}
 
@@ -251,6 +274,7 @@ export default function AdminHomeScreen() {
 const styles = StyleSheet.create({
   loader: { marginTop: Spacing.five },
   row: { flexDirection: 'row', gap: Spacing.two },
+  pager: { flexDirection: 'row', alignItems: 'center', gap: Spacing.two },
   alumnoCard: { flexDirection: 'row', alignItems: 'center', gap: Spacing.two },
   flex: { flex: 1 },
   pressed: { opacity: 0.7 },

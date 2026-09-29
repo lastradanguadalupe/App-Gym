@@ -14,6 +14,8 @@ import type {
   Region,
 } from '@/types';
 
+export type AlumnoStats = { sessions: number; minutes: number; hasRoutine: boolean };
+
 function dataOrThrow<T>({ data, error }: { data: T | null; error: unknown }): T {
   if (error || data == null) {
     throw error ? (error as Error) : new Error('Sin datos');
@@ -52,15 +54,59 @@ export async function updateProfileName(uid: string, name: string): Promise<void
   if (res.error) throw res.error;
 }
 
-/** Alumnos asignados al profe (nunca el directorio global). */
-export async function fetchAlumnos(profeId: string): Promise<Profile[]> {
+/** Alumnos asignados al profe (nunca el directorio global). Paginado. */
+export async function fetchAlumnos(
+  profeId: string,
+  page: number,
+  pageSize: number
+): Promise<Profile[]> {
+  const from = page * pageSize;
   const res = await supabase
     .from('profiles')
     .select('*')
     .eq('role', 'cliente')
     .eq('profe_id', profeId)
-    .order('name');
+    .order('name')
+    .range(from, from + pageSize - 1);
   return dataOrThrow<Profile[]>(res);
+}
+
+/** Total de alumnos del profe, para saber cuantas paginas hay. */
+export async function countAlumnos(profeId: string): Promise<number> {
+  const res = await supabase
+    .from('profiles')
+    .select('id', { count: 'exact', head: true })
+    .eq('role', 'cliente')
+    .eq('profe_id', profeId);
+  if (res.error) throw res.error;
+  return res.count ?? 0;
+}
+
+/**
+ * Agregados de todos los alumnos de un profe en una sola consulta.
+ *
+ * Reemplaza el patron N+1 del panel, que por alumno pedia sus sesiones
+ * completas y su rutina activa solo para contar y sumar.
+ */
+export async function fetchStudentStats(profeId: string): Promise<Record<string, AlumnoStats>> {
+  const res = await supabase.rpc('student_stats', { p_profe_id: profeId });
+  if (res.error) throw res.error;
+  const rows = (res.data ?? []) as {
+    client_id: string;
+    session_count: number;
+    total_minutes: number;
+    has_routine: boolean;
+  }[];
+  return Object.fromEntries(
+    rows.map((r) => [
+      r.client_id,
+      {
+        sessions: Number(r.session_count),
+        minutes: Number(r.total_minutes),
+        hasRoutine: r.has_routine,
+      },
+    ])
+  );
 }
 
 /** Búsqueda por nombre (y apellido) o email para asignar un alumno nuevo (RPC, solo profe). */
