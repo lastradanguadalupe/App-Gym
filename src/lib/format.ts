@@ -14,8 +14,18 @@ export function weekdayLabel(weekday: number): string {
 
 export function computeEdad(fechaNac: string | null): number | null {
   if (!fechaNac) return null;
-  const born = new Date(fechaNac);
+
+  // `new Date('1998-06-16')` se parsea como UTC midnight, pero despues se lee
+  // con getters locales. En un offset negativo eso corre la fecha un dia
+  // (en Argentina, UTC-3: 1998-06-16T00:00Z es 1998-06-15 21:00 local), y la
+  // edad queda mal exactamente alrededor del cumpleanos. Se parsea a mano
+  // para que la fecha sea siempre local.
+  const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(fechaNac.trim());
+  if (!match) return null;
+
+  const born = new Date(Number(match[1]), Number(match[2]) - 1, Number(match[3]));
   if (Number.isNaN(born.getTime())) return null;
+
   const now = new Date();
   let age = now.getFullYear() - born.getFullYear();
   const m = now.getMonth() - born.getMonth();
