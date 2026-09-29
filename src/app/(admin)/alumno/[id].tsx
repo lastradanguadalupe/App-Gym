@@ -40,6 +40,7 @@ import {
   regionLabel,
   weekdayLabel,
 } from '@/lib/format';
+import { friendlyError } from '@/lib/errors';
 import { Spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
 import type {
@@ -67,18 +68,6 @@ type DraftBlock = {
   region: Region;
   exerciseIds: number[];
 };
-
-function errMsg(e: unknown): string {
-  const obj = e as { message?: string; details?: string; hint?: string; code?: string };
-  if (obj?.code || obj?.message) {
-    let msg = obj.message ?? 'Supabase';
-    if (obj.details) msg += ` · ${obj.details}`;
-    if (obj.hint) msg += ` · ${obj.hint}`;
-    if (obj.code) msg += ` (${obj.code})`;
-    return msg;
-  }
-  return e instanceof Error ? e.message : JSON.stringify(e);
-}
 
 function Meta({ label, value, wide }: { label: string; value: string; wide?: boolean }) {
   return (
@@ -177,7 +166,10 @@ export default function AdminAlumnoScreen() {
       await load();
     } catch (e) {
       console.warn(e);
-      Alert.alert('No se pudo guardar', `Revisá la asignación del día. (${errMsg(e)})`);
+      Alert.alert(
+        'No se pudo guardar',
+        friendlyError(e, 'Revisa la asignacion del dia e intenta de nuevo.')
+      );
     } finally {
       setBusy(false);
     }
@@ -253,7 +245,7 @@ export default function AdminAlumnoScreen() {
       await load();
     } catch (e) {
       console.warn(e);
-      setDraftError(`No se pudo crear la rutina. (${errMsg(e)})`);
+      setDraftError(friendlyError(e, 'No se pudo crear la rutina.'));
     } finally {
       setBusy(false);
     }

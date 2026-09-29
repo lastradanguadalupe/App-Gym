@@ -1,6 +1,6 @@
 import { Link } from 'expo-router';
 import { useState } from 'react';
-import { Alert, StyleSheet } from 'react-native';
+import { StyleSheet } from 'react-native';
 
 import { AuthDivider, AuthHeader } from '@/components/auth-header';
 import { Button } from '@/components/ui/button';
@@ -30,8 +30,8 @@ export default function LoginScreen() {
     const { error } = await supabase.auth.signInWithPassword({ email: email.trim(), password });
     setLoading(false);
     if (error) {
+      console.warn('[auth] signInWithPassword fallo', error);
       setError('Credenciales inválidas. Revisá tu email y contraseña.');
-      Alert.alert('Error al ingresar', error.message);
     }
   }
 

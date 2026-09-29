@@ -9,19 +9,11 @@ import { Field } from '@/components/ui/field';
 import { GoogleButton } from '@/components/ui/google-button';
 import { Screen } from '@/components/ui/screen';
 import { ThemedText } from '@/components/themed-text';
+import { friendlyError } from '@/lib/errors';
 import { signInWithGoogle } from '@/lib/oauth';
 import { supabase } from '@/lib/supabase';
+import { validatePassword } from '@/lib/validation';
 import { Spacing } from '@/constants/theme';
-
-function friendlyAuthError(message: string): string {
-  if (/rate limit/i.test(message)) {
-    return 'Demasiados registros en poco tiempo. Esperá unos minutos y volvé a intentar.';
-  }
-  if (/email suggestions|already registered|usuario ya/i.test(message)) {
-    return 'Ya existe una cuenta con ese email. Probá ingresar o usá otro email.';
-  }
-  return message;
-}
 
 export default function RegisterScreen() {
   const [name, setName] = useState('');
@@ -32,8 +24,13 @@ export default function RegisterScreen() {
   const [error, setError] = useState<string | null>(null);
 
   async function handleRegister() {
-    if (!name.trim() || !email.trim() || password.length < 6) {
-      setError('Completá nombre y email, y usá una contraseña de al menos 6 caracteres.');
+    if (!name.trim() || !email.trim()) {
+      setError('Completá nombre y email.');
+      return;
+    }
+    const passwordCheck = validatePassword(password);
+    if (!passwordCheck.ok) {
+      setError(passwordCheck.message);
       return;
     }
     setLoading(true);
@@ -51,7 +48,7 @@ export default function RegisterScreen() {
 
     if (error) {
       setLoading(false);
-      setError(friendlyAuthError(error.message));
+      setError(friendlyError(error, 'No se pudo crear la cuenta.'));
       return;
     }
 

@@ -9,8 +9,10 @@ import { Field } from '@/components/ui/field';
 import { Screen } from '@/components/ui/screen';
 import { ThemedText } from '@/components/themed-text';
 import { fetchProfile } from '@/lib/db';
+import { friendlyError } from '@/lib/errors';
 import { authCallbackUri } from '@/lib/oauth';
 import { supabase } from '@/lib/supabase';
+import { validatePassword } from '@/lib/validation';
 import { gradientStyle, Gradients, Radius, Shadows, Spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
 
@@ -32,8 +34,13 @@ export default function ProfeRegisterScreen() {
   const [error, setError] = useState<string | null>(null);
 
   async function handleRegister() {
-    if (!name.trim() || !email.trim() || password.length < 6) {
-      setError('Completá nombre y email, y usá una contraseña de al menos 6 caracteres.');
+    if (!name.trim() || !email.trim()) {
+      setError('Completá nombre y email.');
+      return;
+    }
+    const passwordCheck = validatePassword(password);
+    if (!passwordCheck.ok) {
+      setError(passwordCheck.message);
       return;
     }
     setLoading(true);
@@ -50,11 +57,8 @@ export default function ProfeRegisterScreen() {
 
     if (error) {
       setLoading(false);
-      setError(
-        /already registered|usuario ya|email suggestions/i.test(error.message)
-          ? 'Ya existe una cuenta con ese email. Probá ingresar.'
-          : error.message
-      );
+      console.warn('[auth] signUp (profe) fallo', error);
+      setError(friendlyError(error, 'No se pudo crear la cuenta.'));
       return;
     }
 
