@@ -15,7 +15,7 @@ import {
   fetchActiveRoutineForClient,
   fetchAlumnos,
   fetchSessions,
-  searchClientsByEmail,
+  searchClients,
 } from '@/lib/db';
 import { formatMinutes } from '@/lib/format';
 import { Spacing } from '@/constants/theme';
@@ -32,7 +32,9 @@ export default function AdminHomeScreen() {
   const [alumnos, setAlumnos] = useState<Profile[]>([]);
   const [stats, setStats] = useState<Record<string, AlumnoStats>>({});
   const [loading, setLoading] = useState(true);
-  const [email, setEmail] = useState('');
+  const [query, setQuery] = useState('');
+  const [results, setResults] = useState<Pick<Profile, 'id' | 'email' | 'name'>[]>([]);
+  const [searching, setSearching] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
@@ -72,30 +74,41 @@ export default function AdminHomeScreen() {
     }, [load])
   );
 
-  async function handleAgregar() {
+  async function handleSearch() {
     setMessage(null);
     setError(null);
-    if (!email.trim()) {
-      setError('Ingresá el email del alumno.');
+    if (!query.trim()) {
+      setError('Ingresá el nombre (o email) del alumno.');
       return;
     }
+    setSearching(true);
+    try {
+      const matches = await searchClients(query.trim());
+      setResults(matches);
+      if (!matches.length) {
+        setError('No encontré alumnos con ese nombre o email. Deben registrarse primero desde la app.');
+      }
+    } catch (e) {
+      console.warn(e);
+      setError('No se pudo buscar. Probá de nuevo.');
+    } finally {
+      setSearching(false);
+    }
+  }
+
+  async function handleAssign(target: Pick<Profile, 'id' | 'email' | 'name'>) {
+    setMessage(null);
+    setError(null);
     setBusy(true);
     try {
-      // El directorio no se lista más: la búsqueda es un RPC que solo devuelve
-      // coincidencias acotadas a profes autenticados.
-      const matches = await searchClientsByEmail(email.trim());
-      const target = matches.find((m) => m.email.toLowerCase() === email.trim().toLowerCase()) ?? matches[0];
-      if (!target) {
-        setError('No encontré ningún alumno con ese email. Debe registrarse primero como alumno.');
-        return;
-      }
       await assignProfe(target.id);
       setMessage(`${target.name ?? target.email} ahora es tu alumno.`);
-      setEmail('');
+      setQuery('');
+      setResults([]);
       await load();
     } catch (e) {
-      setError('No se pudo asignar el alumno.');
       console.warn(e);
+      setError('No se pudo asignar. Puede que ya tenga otro profe asignado.');
     } finally {
       setBusy(false);
     }
@@ -112,7 +125,7 @@ export default function AdminHomeScreen() {
   return (
     <Screen>
       <View>
-        <ThemedText type="small" themeColor="brandBright">
+        <ThemedText type="small" themeColor="text">
           Panel del profe
         </ThemedText>
         <ThemedText type="display">
@@ -128,21 +141,51 @@ export default function AdminHomeScreen() {
           Agregar un alumno
         </ThemedText>
         <Field
-          label="Email del alumno"
-          value={email}
-          onChangeText={setEmail}
-          autoCapitalize="none"
+          label="Nombre del alumno"
+          value={query}
+          onChangeText={(t) => {
+            setQuery(t);
+            setResults([]);
+            setError(null);
+          }}
+          autoCapitalize="words"
           autoComplete="off"
-          keyboardType="email-address"
-          placeholder="alumno@mail.com"
+          placeholder="Ej: María González"
+          hint="Buscá por nombre y apellido (o email)."
         />
         {message ? <ThemedText themeColor="success">{message}</ThemedText> : null}
         {error ? <ThemedText themeColor="danger">{error}</ThemedText> : null}
+
+        {results.length ? (
+          <View style={styles.results}>
+            <ThemedText type="smallBold" themeColor="textSecondary">
+              Resultados ({results.length})
+            </ThemedText>
+            {results.map((r) => (
+              <View key={r.id} style={styles.resultRow}>
+                <View style={styles.flex}>
+                  <ThemedText type="default">{r.name ?? 'Sin nombre'}</ThemedText>
+                  <ThemedText type="small" themeColor="textSecondary">
+                    {r.email}
+                  </ThemedText>
+                </View>
+                <Button
+                  variant="outline"
+                  label="Agregar"
+                  icon="account-plus-outline"
+                  disabled={busy}
+                  onPress={() => handleAssign(r)}
+                />
+              </View>
+            ))}
+          </View>
+        ) : null}
+
         <Button
-          label="Agregar como mi alumno"
-          icon="account-plus-outline"
-          onPress={handleAgregar}
-          loading={busy}
+          label="Buscar alumno"
+          icon="account-search-outline"
+          onPress={handleSearch}
+          loading={searching}
         />
       </Card>
 
@@ -162,13 +205,6 @@ export default function AdminHomeScreen() {
           style={styles.flex}
         />
       </View>
-
-      <Button
-        variant="secondary"
-        label="Equipo de profes"
-        icon="account-tie-outline"
-        onPress={() => router.push('/equipo')}
-      />
 
       {!alumnos.length ? (
         <EmptyState
@@ -218,4 +254,13 @@ const styles = StyleSheet.create({
   alumnoCard: { flexDirection: 'row', alignItems: 'center', gap: Spacing.two },
   flex: { flex: 1 },
   pressed: { opacity: 0.7 },
+  results: { gap: Spacing.two },
+  resultRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.two,
+    paddingVertical: Spacing.two,
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderTopColor: '#1C3E6B',
+  },
 });

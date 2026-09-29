@@ -12,14 +12,15 @@ import { Screen } from '@/components/ui/screen';
 import { useSession } from '@/context/session';
 import { useWorkout } from '@/context/workout';
 import {
+  clearBlockDay,
   fetchActiveRoutineForClient,
   fetchSchedule,
   fetchSessions,
   insertSession,
-  upsertSchedule,
+  setBlockDay,
   type RoutineFull,
 } from '@/lib/db';
-import { WEEKDAYS_SHORT, regionLabel, weekdayLabel, weekdayOf } from '@/lib/format';
+import { formatDurationMs, WEEKDAYS_SHORT, regionLabel, weekdayLabel, weekdayOf } from '@/lib/format';
 import { Radius, Spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
 import type { RoutineBlock, RoutineSchedule, WorkoutSession } from '@/types';
@@ -78,15 +79,24 @@ export default function RutinaScreen() {
   }
 
   async function handleSetDay(block: RoutineBlock, weekday: number) {
-    if (!uid || !routine) return;
+    if (!uid) return;
     const currently = scheduledWeekdayOf(block.id);
-    if (currently === weekday) return;
     try {
-      await upsertSchedule(routine.id, uid, block.id, weekday);
+      if (currently === weekday) {
+        await clearBlockDay(uid, block.id);
+      } else {
+        await setBlockDay(uid, block.id, weekday);
+      }
       await load();
     } catch (e) {
       console.warn('Error actualizando semana', e);
     }
+  }
+
+  async function handleFinishTimer() {
+    const id = await workout.finish();
+    if (id == null) console.warn('La sesión no se guardó');
+    await load();
   }
 
   async function markComplete(block: RoutineBlock) {
@@ -132,6 +142,43 @@ export default function RutinaScreen() {
 
   return (
     <Screen>
+      {workout.status === 'running' || workout.status === 'paused' ? (
+        <Card>
+          <View style={styles.timerHeader}>
+            <ThemedText type="eyebrow" themeColor="teal">
+              En curso
+            </ThemedText>
+            <View style={[styles.liveDot, { backgroundColor: theme.teal }]} />
+          </View>
+          <ThemedText type="display" style={styles.timer}>
+            {formatDurationMs(workout.elapsedMs)}
+          </ThemedText>
+          <ThemedText type="small" themeColor="textSecondary">
+            {workout.label ?? 'Entrenamiento'}
+          </ThemedText>
+          <View style={styles.row}>
+            {workout.status === 'running' ? (
+              <Button
+                variant="secondary"
+                label="Pausar"
+                icon="pause"
+                onPress={workout.pause}
+                style={styles.flex}
+              />
+            ) : (
+              <Button
+                variant="secondary"
+                label="Reanudar"
+                icon="play"
+                onPress={workout.resume}
+                style={styles.flex}
+              />
+            )}
+            <Button label="Finalizar" icon="stop" onPress={handleFinishTimer} style={styles.flex} />
+          </View>
+        </Card>
+      ) : null}
+
       <View style={styles.titleBlock}>
         <ThemedText type="display">{routine.title}</ThemedText>
         {routine.description ? (
@@ -154,7 +201,7 @@ export default function RutinaScreen() {
                 {weekdayLabel(weekday)}
               </ThemedText>
               <ThemedText type="small" themeColor={block ? 'brandBright' : 'textSecondary'}>
-                {block ? block.name : 'Descanso / libre'}
+                {block ? block.name : 'Libre / Descanso'}
               </ThemedText>
             </View>
           );
@@ -162,7 +209,8 @@ export default function RutinaScreen() {
       </Card>
 
       <ThemedText type="small" themeColor="textSecondary" style={styles.helper}>
-        Tocá un día de la semana en cada bloque para elegir cuándo lo hacés.
+        Tocá el día que hace este bloque. Tu profe arma el plan y vos podés ajustarlo; tocá de nuevo
+        el mismo día para dejarlo libre.
       </ThemedText>
 
       {routine.routine_blocks.map((block, index) => {
@@ -277,6 +325,9 @@ const styles = StyleSheet.create({
     borderRadius: Radius.md,
     borderWidth: StyleSheet.hairlineWidth,
   },
+  timerHeader: { flexDirection: 'row', alignItems: 'center', gap: Spacing.two },
+  liveDot: { width: 8, height: 8, borderRadius: 4 },
+  timer: { fontVariant: ['tabular-nums'] },
   pressed: { opacity: 0.7 },
   flex: { flex: 1 },
   row: { flexDirection: 'row', gap: Spacing.two },

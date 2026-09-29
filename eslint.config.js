@@ -8,6 +8,18 @@ module.exports = defineConfig([
     ignores: ["dist/*"],
   },
   {
+    // scripts/ corre en Node (CommonJS), no en React Native.
+    files: ["scripts/**/*.js"],
+    languageOptions: {
+      globals: {
+        __dirname: "readonly",
+        module: "writable",
+        process: "readonly",
+        require: "readonly",
+      },
+    },
+  },
+  {
     settings: {
       "import/resolver": "node",
     },

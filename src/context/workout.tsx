@@ -94,13 +94,15 @@ export function WorkoutProvider({ children }: { children: ReactNode }) {
     setState(IDLE);
     if (!session) return null;
     try {
-      return await insertSession({
+      const id = await insertSession({
         client_id: session.user.id,
         block_id: blockId,
         routine_id: routineId,
         weekday: weekdayOf(new Date()),
         duration_minutes: minutes,
       });
+      console.log('[workout] sesión guardada', id);
+      return id;
     } catch (e) {
       console.warn('No se pudo guardar la sesión', e);
       return null;
@@ -114,7 +116,8 @@ export function WorkoutProvider({ children }: { children: ReactNode }) {
       label: state.label,
       blockId: state.blockId,
       routineId: state.routineId,
-      start: (input) =>
+      start: (input) => {
+        console.log('[workout] start', input);
         setState({
           status: 'running',
           startedAt: Date.now(),
@@ -122,7 +125,8 @@ export function WorkoutProvider({ children }: { children: ReactNode }) {
           blockId: input?.blockId ?? null,
           routineId: input?.routineId ?? null,
           label: input?.label ?? null,
-        }),
+        });
+      },
       pause: () =>
         setState((s) =>
           s.status === 'running' && s.startedAt != null

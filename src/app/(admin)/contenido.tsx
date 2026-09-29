@@ -82,7 +82,7 @@ export default function AdminContenidoScreen() {
   return (
     <Screen>
       <View style={styles.header}>
-        <ThemedText type="eyebrow" themeColor="brandBright">
+        <ThemedText type="eyebrow" themeColor="text">
           Contenido
         </ThemedText>
         <ThemedText type="display">Frases y tips</ThemedText>

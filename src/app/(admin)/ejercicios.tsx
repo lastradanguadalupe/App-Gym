@@ -126,7 +126,7 @@ export default function AdminEjerciciosScreen() {
   return (
     <Screen>
       <View style={styles.header}>
-        <ThemedText type="eyebrow" themeColor="brandBright">
+        <ThemedText type="eyebrow" themeColor="text">
           Catálogo
         </ThemedText>
         <ThemedText type="display">Ejercicios</ThemedText>
@@ -174,7 +174,7 @@ export default function AdminEjerciciosScreen() {
         if (!groupExercises.length) return null;
         return (
           <Card key={mg.id}>
-            <ThemedText type="eyebrow" themeColor="brandBright">
+            <ThemedText type="eyebrow" themeColor="text">
               {mg.name} · {groupExercises.length}
             </ThemedText>
             {groupExercises.map((ex) => (

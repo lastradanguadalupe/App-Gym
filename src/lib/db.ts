@@ -10,8 +10,8 @@ import type {
   RoutineBlock,
   RoutineBlockExercise,
   RoutineSchedule,
-  StaffEntry,
   WorkoutSession,
+  Region,
 } from '@/types';
 
 function dataOrThrow<T>({ data, error }: { data: T | null; error: unknown }): T {
@@ -63,37 +63,15 @@ export async function fetchAlumnos(profeId: string): Promise<Profile[]> {
   return dataOrThrow<Profile[]>(res);
 }
 
-/** Búsqueda por email para asignar un alumno nuevo (RPC, solo profe). */
-export async function searchClientsByEmail(query: string): Promise<Pick<Profile, 'id' | 'email' | 'name'>[]> {
-  const res = await supabase.rpc('search_clients_by_email', { query });
+/** Búsqueda por nombre (y apellido) o email para asignar un alumno nuevo (RPC, solo profe). */
+export async function searchClients(query: string): Promise<Pick<Profile, 'id' | 'email' | 'name'>[]> {
+  const res = await supabase.rpc('search_clients', { query });
   if (res.error) throw res.error;
   return (res.data as Pick<Profile, 'id' | 'email' | 'name'>[]) ?? [];
 }
 
 export async function assignProfe(target: string): Promise<void> {
   const res = await supabase.rpc('assign_profe', { target });
-  if (res.error) throw res.error;
-}
-
-// ---------- Staff (allow-list de profes) ----------
-
-export async function fetchStaffAllowlist(): Promise<StaffEntry[]> {
-  const res = await supabase.rpc('list_staff_allowlist');
-  if (res.error) throw res.error;
-  return (res.data as StaffEntry[]) ?? [];
-}
-
-/** Habilita un email para registrarse como profe y promueve la cuenta si ya existe. */
-export async function grantStaffAccess(email: string, note?: string): Promise<void> {
-  const res = await supabase.rpc('grant_staff_access', {
-    target_email: email,
-    note: note?.trim() || null,
-  });
-  if (res.error) throw res.error;
-}
-
-export async function revokeStaffAccess(email: string): Promise<void> {
-  const res = await supabase.rpc('revoke_staff_access', { target_email: email });
   if (res.error) throw res.error;
 }
 
@@ -197,6 +175,26 @@ export async function createRoutine(input: {
   return dataOrThrow<{ id: number }>(res).id;
 }
 
+export async function createRoutineFull(input: {
+  cliente_id: string;
+  title: string;
+  description?: string | null;
+  blocks: { name: string; region: Region; exerciseIds: number[] }[];
+}): Promise<number> {
+  const res = await supabase.rpc('create_routine_full', {
+    p_cliente_id: input.cliente_id,
+    p_title: input.title,
+    p_description: input.description ?? null,
+    p_blocks: input.blocks.map((b) => ({
+      name: b.name,
+      region: b.region,
+      exercise_ids: b.exerciseIds.map((id) => ({ id })),
+    })),
+  });
+  if (res.error) throw res.error;
+  return res.data as number;
+}
+
 export async function updateRoutine(
   id: number,
   input: { title?: string; description?: string | null; is_active?: boolean }
@@ -216,8 +214,14 @@ export async function createBlock(input: {
   region: string;
   position: number;
 }): Promise<number> {
-  const res = await supabase.from('routine_blocks').insert(input).select('id').single();
-  return dataOrThrow<{ id: number }>(res).id;
+  const res = await supabase.rpc('create_block_in_routine', {
+    p_routine_id: input.routine_id,
+    p_name: input.name,
+    p_region: input.region,
+    p_position: input.position,
+  });
+  if (res.error) throw res.error;
+  return res.data as number;
 }
 
 export async function deleteBlock(id: number): Promise<void> {
@@ -233,7 +237,14 @@ export async function addBlockExercise(input: {
   rest_seconds: number;
   position: number;
 }): Promise<void> {
-  const res = await supabase.from('routine_block_exercises').insert(input);
+  const res = await supabase.rpc('add_exercise_to_block', {
+    p_block_id: input.block_id,
+    p_exercise_id: input.exercise_id,
+    p_sets: input.sets,
+    p_reps: input.reps,
+    p_rest_seconds: input.rest_seconds,
+    p_position: input.position,
+  });
   if (res.error) throw res.error;
 }
 
@@ -257,16 +268,20 @@ export async function fetchSchedule(clientId: string): Promise<RoutineSchedule[]
   return dataOrThrow<RoutineSchedule[]>(res);
 }
 
-export async function upsertSchedule(
-  routineId: number,
-  clientId: string,
-  blockId: number,
-  weekday: number
-): Promise<void> {
-  const res = await supabase.from('routine_schedule').upsert(
-    { routine_id: routineId, client_id: clientId, block_id: blockId, weekday },
-    { onConflict: 'client_id,weekday' }
-  );
+export async function setBlockDay(clientId: string, blockId: number, weekday: number): Promise<void> {
+  const res = await supabase.rpc('set_block_weekday', {
+    p_client_id: clientId,
+    p_block_id: blockId,
+    p_weekday: weekday,
+  });
+  if (res.error) throw res.error;
+}
+
+export async function clearBlockDay(clientId: string, blockId: number): Promise<void> {
+  const res = await supabase.rpc('clear_block_weekday', {
+    p_client_id: clientId,
+    p_block_id: blockId,
+  });
   if (res.error) throw res.error;
 }
 
