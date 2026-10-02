@@ -19,7 +19,7 @@ import {
   type AlumnoStats,
 } from '@/lib/db';
 import { formatMinutes } from '@/lib/format';
-import { Spacing } from '@/constants/theme';
+import { Colors, Spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
 import type { Profile } from '@/types';
 
@@ -285,6 +285,6 @@ const styles = StyleSheet.create({
     gap: Spacing.two,
     paddingVertical: Spacing.two,
     borderTopWidth: StyleSheet.hairlineWidth,
-    borderTopColor: '#1C3E6B',
+    borderTopColor: Colors.dark.border,
   },
 });

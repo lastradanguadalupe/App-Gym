@@ -2,10 +2,22 @@ export type Role = 'cliente' | 'profe';
 export type Region = 'superior' | 'inferior' | 'core' | 'full';
 export type Experiencia = 'inicio' | 'intermedio' | 'avanzado';
 
+/** Opciones cerradas de sexo. `null` = el usuario no lo completó. */
+export type Sexo = 'masculino' | 'femenino' | 'prefiero no decirlo';
+
+/** Idiomas soportados por la app. El valor va a `profiles.idioma`. */
+export type Idioma = 'es' | 'en';
+
+export const SEXOS: readonly Sexo[] = ['masculino', 'femenino', 'prefiero no decirlo'] as const;
+
+export const IDIOMAS: readonly Idioma[] = ['es', 'en'] as const;
+
 export interface Profile {
   id: string;
   email: string;
   name: string | null;
+  username: string | null;
+  idioma: Idioma;
   role: Role;
   profe_id: string | null;
   avatar_url: string | null;
@@ -17,6 +29,7 @@ export interface ClientDetails {
   id: number;
   user_id: string;
   fecha_nacimiento: string | null;
+  sexo: Sexo | null;
   altura_cm: number | null;
   peso_kg: number | null;
   objetivo: string | null;
@@ -26,6 +39,16 @@ export interface ClientDetails {
   rutina_activa: boolean;
   created_at: string;
   updated_at: string;
+}
+
+/** Una fila de `medidas_corporales`: un punto del gráfico de evolución. */
+export interface MedidaCorporal {
+  id: number;
+  usuario_id: string;
+  fecha: string;
+  peso_kg: number;
+  altura_cm: number | null;
+  creado_en: string;
 }
 
 export interface MuscleGroup {

@@ -8,6 +8,7 @@ import { AnimatedSplashOverlay } from '@/components/animated-icon';
 import { ThemedText } from '@/components/themed-text';
 import { Button } from '@/components/ui/button';
 import { Spacing } from '@/constants/theme';
+import { I18nProvider } from '@/context/i18n';
 import { SessionProvider, useSession } from '@/context/session';
 import { useTheme } from '@/hooks/use-theme';
 
@@ -112,7 +113,9 @@ export default function RootLayout() {
       <StatusBar style="light" />
       <AnimatedSplashOverlay />
       <SessionProvider>
-        <RootNavigator />
+        <I18nProvider>
+          <RootNavigator />
+        </I18nProvider>
       </SessionProvider>
     </ThemeProvider>
   );

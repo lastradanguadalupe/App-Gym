@@ -1,28 +1,41 @@
 import { useEffect, useState } from 'react';
 import { StyleSheet, View } from 'react-native';
+import { router } from 'expo-router';
 
 import { ThemedText } from '@/components/themed-text';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Chip } from '@/components/ui/chip';
 import { Field } from '@/components/ui/field';
-import { Screen } from '@/components/ui/screen';
+import { IconAction } from '@/components/ui/icon-action';
+import { Screen, Section } from '@/components/ui/screen';
 import { useSession } from '@/context/session';
 import { fetchProfile, updateProfileName, upsertClientDetails } from '@/lib/db';
 import { computeEdad, parseTags } from '@/lib/format';
 import { gradientStyle, Gradients, Spacing, Radius, Shadows } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
+import { t } from '@/i18n';
 import type { Experiencia, Profile } from '@/types';
 
-const EXPERIENCIAS: { value: Experiencia; label: string }[] = [
-  { value: 'inicio', label: 'Principiante' },
-  { value: 'intermedio', label: 'Intermedio' },
-  { value: 'avanzado', label: 'Avanzado' },
-];
+/**
+ * El rótulo de cada nivel se resuelve en render, no en un array de constantes:
+ * `t()` lee el idioma activo, y un `const` de módulo se calcularía una sola vez
+ * con el idioma del primer mount.
+ */
+function experienciaLabel(value: Experiencia): string {
+  switch (value) {
+    case 'inicio':
+      return t('perfil.expPrincipiante');
+    case 'intermedio':
+      return t('perfil.expIntermedio');
+    case 'avanzado':
+      return t('perfil.expAvanzado');
+  }
+}
 
 export default function PerfilScreen() {
   const theme = useTheme();
-  const { session, profile, clientDetails, refreshProfile, signOut } = useSession();
+  const { session, profile, clientDetails, refreshProfile } = useSession();
 
   const [name, setName] = useState('');
   const [fechaNacimiento, setFechaNacimiento] = useState('');
@@ -87,9 +100,9 @@ export default function PerfilScreen() {
         experiencia,
       });
       await refreshProfile();
-      setMessage('Cambios guardados.');
+      setMessage(t('perfil.cambiosGuardados'));
     } catch (e) {
-      setError('No se pudieron guardar los cambios.');
+      setError(t('perfil.noSePudieronGuardar'));
       console.warn(e);
     } finally {
       setSaving(false);
@@ -98,6 +111,8 @@ export default function PerfilScreen() {
 
   return (
     <Screen>
+      {/* Los NativeTabs no traen header, así que este bloque hace de cabecera de
+          la pantalla y el engranaje vive acá: es el mismo lugar en native y web. */}
       <View style={styles.identity}>
         <View style={[styles.avatar, { backgroundColor: theme.brand }, gradientStyle(Gradients.accent)]}>
           <ThemedText type="subtitle" themeColor="tintText">
@@ -106,91 +121,101 @@ export default function PerfilScreen() {
         </View>
         <View style={styles.identityText}>
           <ThemedText type="display" style={styles.identityName}>
-            {profile?.name ?? 'Tu perfil'}
+            {profile?.name ?? t('perfil.tuPerfil')}
           </ThemedText>
           <ThemedText type="small" themeColor="textSecondary">
-            {profile?.role === 'profe' ? 'Profe' : 'Alumno'}
+            {profile?.role === 'profe' ? t('perfil.profe') : t('perfil.alumno')}
             {profile?.email ? ` · ${profile.email}` : ''}
           </ThemedText>
         </View>
+        <IconAction
+          icon="cog-outline"
+          label={t('ajustes.title')}
+          color={theme.textSecondary}
+          background={theme.backgroundElement}
+          onPress={() => router.push('/perfil/ajustes')}
+        />
       </View>
 
-      <Card>
-        <ThemedText type="eyebrow" themeColor="textSecondary">
-          Datos de la cuenta
-        </ThemedText>
-        <Field label="Nombre" value={name} onChangeText={setName} />
-        {profe ? (
-          <ThemedText type="small" themeColor="textSecondary">
-            Tu profe: <ThemedText type="smallBold">{profe.name ?? profe.email}</ThemedText>
-          </ThemedText>
-        ) : null}
-      </Card>
+      <Section title={t('perfil.datosCuenta')}>
+        <Card>
+          <Field label={t('perfil.nombre')} value={name} onChangeText={setName} />
+          {profe ? (
+            <ThemedText type="small" themeColor="textSecondary">
+              {t('perfil.tuProfe')}: <ThemedText type="smallBold">{profe.name ?? profe.email}</ThemedText>
+            </ThemedText>
+          ) : null}
+        </Card>
+      </Section>
 
-      <Card>
-        <ThemedText type="eyebrow" themeColor="textSecondary">
-          Tu información para la rutina
-        </ThemedText>
-        {edad != null ? (
-          <ThemedText type="small" themeColor="textSecondary">
-            Edad: {edad} años · {clientDetails?.altura_cm ?? '—'} cm · {clientDetails?.peso_kg ?? '—'} kg
-          </ThemedText>
-        ) : null}
+      <Section title={t('perfil.informacionRutina')}>
+        <Card>
+          {edad != null ? (
+            <ThemedText type="small" themeColor="textSecondary">
+              {t('perfil.edadAnios', { edad })} · {clientDetails?.altura_cm ?? '—'} cm ·{' '}
+              {clientDetails?.peso_kg ?? '—'} kg
+            </ThemedText>
+          ) : null}
 
-        <Field
-          label="Fecha de nacimiento"
-          value={fechaNacimiento}
-          onChangeText={setFechaNacimiento}
-          placeholder="AAAA-MM-DD"
-          autoCapitalize="none"
-        />
-        <View style={styles.row}>
-          <View style={styles.half}>
-            <Field
-              label="Altura (cm)"
-              value={altura}
-              onChangeText={setAltura}
-              keyboardType="decimal-pad"
-            />
-          </View>
-          <View style={styles.half}>
-            <Field label="Peso (kg)" value={peso} onChangeText={setPeso} keyboardType="decimal-pad" />
-          </View>
-        </View>
-        <Field label="Objetivo" value={objetivo} onChangeText={setObjetivo} />
-        <Field
-          label="Enfermedades (separadas por coma)"
-          value={enfermedades}
-          onChangeText={setEnfermedades}
-        />
-        <Field
-          label="Lesiones (separadas por coma)"
-          value={lesiones}
-          onChangeText={setLesiones}
-        />
-
-        <View style={styles.group}>
-          <ThemedText type="smallBold" themeColor="textSecondary">
-            Nivel de experiencia
-          </ThemedText>
+          <Field
+            label={t('perfil.fechaNacimiento')}
+            value={fechaNacimiento}
+            onChangeText={setFechaNacimiento}
+            placeholder="AAAA-MM-DD"
+            autoCapitalize="none"
+          />
           <View style={styles.row}>
-            {EXPERIENCIAS.map((exp) => (
-              <Chip
-                key={exp.value}
-                label={exp.label}
-                selected={experiencia === exp.value}
-                onPress={() => setExperiencia(exp.value)}
+            <View style={styles.half}>
+              <Field
+                label={`${t('perfil.altura')} (cm)`}
+                value={altura}
+                onChangeText={setAltura}
+                keyboardType="decimal-pad"
               />
-            ))}
+            </View>
+            <View style={styles.half}>
+              <Field
+                label={`${t('perfil.peso')} (kg)`}
+                value={peso}
+                onChangeText={setPeso}
+                keyboardType="decimal-pad"
+              />
+            </View>
           </View>
-        </View>
+          <Field label={t('perfil.objetivo')} value={objetivo} onChangeText={setObjetivo} />
+          <Field
+            label={t('perfil.enfermedades')}
+            value={enfermedades}
+            onChangeText={setEnfermedades}
+          />
+          <Field label={t('perfil.lesiones')} value={lesiones} onChangeText={setLesiones} />
 
-        {message ? <ThemedText themeColor="success">{message}</ThemedText> : null}
-        {error ? <ThemedText themeColor="danger">{error}</ThemedText> : null}
-        <Button label="Guardar cambios" icon="content-save-outline" onPress={handleSave} loading={saving} />
-      </Card>
+          <View style={styles.group}>
+            <ThemedText type="smallBold" themeColor="textSecondary">
+              {t('perfil.experiencia')}
+            </ThemedText>
+            <View style={styles.row}>
+              {(['inicio', 'intermedio', 'avanzado'] as const).map((exp) => (
+                <Chip
+                  key={exp}
+                  label={experienciaLabel(exp)}
+                  selected={experiencia === exp}
+                  onPress={() => setExperiencia(exp)}
+                />
+              ))}
+            </View>
+          </View>
 
-      <Button variant="danger" label="Cerrar sesión" icon="logout" onPress={signOut} />
+          {message ? <ThemedText themeColor="success">{message}</ThemedText> : null}
+          {error ? <ThemedText themeColor="danger">{error}</ThemedText> : null}
+          <Button
+            label={t('common.guardarCambios')}
+            icon="content-save-outline"
+            onPress={handleSave}
+            loading={saving}
+          />
+        </Card>
+      </Section>
     </Screen>
   );
 }

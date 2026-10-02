@@ -2,7 +2,7 @@
 
 /**
  * Carga el catalogo de ejercicios del markdown a la tabla `exercises` de Supabase,
- * que es la que lee la app (src/lib/db.ts).
+ * que es la que lee la app (src/lib/db/catalog.ts).
  *
  * Corrida unica. Lee catalogo-ejercicios.md, parsea los ejercicios, los mapea a
  * un `muscle_groups` (grupo + region), omite los que ya existen (comparacion

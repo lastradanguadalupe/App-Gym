@@ -8,11 +8,14 @@
   --font-serif: Georgia, 'Times New Roman', serif;
 
   color-scheme: dark;
+
+  /* Debe coincidir con `Colors.dark.background` en src/constants/theme.ts (#0A0A0A). */
+  --app-background: #0a0a0a;
 }
 
 /* Evita el flash blanco en overscroll y en el área del documento en web. */
 html,
 body,
 #root {
-  background-color: #07172e;
+  background-color: var(--app-background);
 }
