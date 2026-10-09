@@ -1,5 +1,7 @@
 import { friendlyError } from '@/lib/errors';
 
+import { i18n } from '@/i18n';
+
 /** Errores con la forma que devuelve PostgREST/GoTrue. */
 function pgError(over: Partial<{ code: string; message: string; details: string; hint: string }>) {
   return { code: 'PGRST301', message: 'JWT expired', details: null, hint: null, ...over };
@@ -17,16 +19,21 @@ describe('friendlyError', () => {
   });
 
   it('traduce los codigos de auth conocidos', () => {
-    expect(friendlyError(pgError({ code: 'invalid_credentials' }))).toBe(
-      'Email o contrasena incorrectos.'
+    expect(friendlyError(pgError({ code: 'invalid_credentials' }), 'common.placeholderIso')).toBe(
+      'Email o contraseña incorrectos.'
     );
-    expect(friendlyError(pgError({ code: 'email_not_confirmed' }))).toContain('Confirmá tu email');
-    expect(friendlyError(pgError({ code: 'user_already_exists' }))).toContain('Ya existe una cuenta');
+    expect(friendlyError(pgError({ code: 'email_not_confirmed' }), 'common.placeholderIso')).toContain(
+      'Confirmá tu email'
+    );
+    expect(friendlyError(pgError({ code: 'user_already_exists' }), 'common.placeholderIso')).toContain(
+      'Ya existe una cuenta'
+    );
   });
 
   it('deja pasar el hint de contrasena debil, que es copy de producto', () => {
     const msg = friendlyError(
-      pgError({ code: 'weak_password', hint: 'Password should be at least 8 characters.' })
+      pgError({ code: 'weak_password', hint: 'Password should be at least 8 characters.' }),
+      'common.placeholderIso'
     );
     expect(msg).toBe('Password should be at least 8 characters.');
   });
@@ -37,22 +44,43 @@ describe('friendlyError', () => {
         code: 'over_request_rate_limit',
         message: 'Rate limit for signup exceeded',
         details: 'auth.users: rate limited',
-      })
+      }),
+      'common.placeholderIso'
     );
     expect(msg).toMatch(/Demasiados intentos/i);
     expect(msg).not.toContain('auth.users');
   });
 
-  it('deja pasar los errores que escriben nuestros propios RPCs', () => {
+  it('traduce a clave local los errores que escriben nuestros propios RPCs', () => {
     const msg = friendlyError(
-      pgError({ message: 'Este ejercicio esta en uso por al menos una rutina.' })
+      pgError({ message: 'Este ejercicio esta en uso por al menos una rutina. Quitalo de las rutinas primero.' }),
+      'common.placeholderIso'
     );
-    expect(msg).toBe('Este ejercicio esta en uso por al menos una rutina.');
+    expect(msg).toBe(
+      'Este ejercicio está en uso por al menos una rutina. Quitalo de las rutinas primero.'
+    );
   });
 
-  it('deja pasar los errores de permisos que escriben nuestros RPCs', () => {
-    const msg = friendlyError(pgError({ message: 'Solo un profe puede buscar alumnos' }));
-    expect(msg).toBe('Solo un profe puede buscar alumnos');
+  it('traduce los errores de permisos que escriben nuestros RPCs', () => {
+    const msg = friendlyError(
+      pgError({ message: 'Solo un profe puede buscar alumnos' }),
+      'common.placeholderIso'
+    );
+    expect(msg).toBe('Solo un profe puede buscar alumnos.');
+  });
+
+  it('devuelve el texto en ingles cuando el idioma activo es ingles', () => {
+    const original = i18n.locale;
+    i18n.locale = 'en';
+    try {
+      const msg = friendlyError(pgError({ code: 'invalid_credentials' }), 'common.placeholderIso');
+      expect(msg).toBe('Wrong email or password.');
+      expect(
+        friendlyError(pgError({ message: 'Solo un profe puede buscar alumnos' }), 'common.placeholderIso')
+      ).toBe('Only a trainer can search for students.');
+    } finally {
+      i18n.locale = original;
+    }
   });
 
   // El punto central de todo el modulo: un error de Postgres desconocido no
@@ -64,10 +92,11 @@ describe('friendlyError', () => {
         message: 'duplicate key value violates unique constraint "profiles_email_key"',
         details: 'Key (email)=(admin@ejemplo.com) already exists.',
         hint: 'Use a different email.',
-      })
+      }),
+      'common.placeholderIso'
     );
 
-    expect(msg).toBe('Ocurrio un error inesperado.');
+    expect(msg).toBe('AAAA-MM-DD');
     expect(msg).not.toContain('profiles_email_key');
     expect(msg).not.toContain('admin@ejemplo.com');
     expect(msg).not.toContain('duplicate key');
@@ -78,14 +107,14 @@ describe('friendlyError', () => {
     expect(
       friendlyError(
         pgError({ code: '42P01', message: 'relation "staff_allowlist" does not exist' }),
-        'Revisa la asignacion del dia.'
+        'admin.errorAsignacionDia'
       )
-    ).toBe('Revisa la asignacion del dia.');
+    ).toBe('Revisá la asignación del día e intentá de nuevo.');
   });
 
   it('deja el error real en el log para debugging', () => {
     const err = pgError({ code: '23503', message: 'foreign key violation' });
-    friendlyError(err);
+    friendlyError(err, 'common.placeholderIso');
     expect(warn).toHaveBeenCalledWith(
       '[error] detalle de Supabase no mostrado al usuario',
       err
@@ -93,15 +122,15 @@ describe('friendlyError', () => {
   });
 
   it('no rompe con valores que no son errores', () => {
-    expect(friendlyError(null)).toBe('Ocurrio un error inesperado.');
-    expect(friendlyError(undefined)).toBe('Ocurrio un error inesperado.');
-    expect(friendlyError('un string')).toBe('Ocurrio un error inesperado.');
-    expect(friendlyError(new Error('boom'))).toBe('Ocurrio un error inesperado.');
+    expect(friendlyError(null, 'common.placeholderIso')).toBe('AAAA-MM-DD');
+    expect(friendlyError(undefined, 'common.placeholderIso')).toBe('AAAA-MM-DD');
+    expect(friendlyError('un string', 'common.placeholderIso')).toBe('AAAA-MM-DD');
+    expect(friendlyError(new Error('boom'), 'common.placeholderIso')).toBe('AAAA-MM-DD');
   });
 
   it('no filtra el mensaje de un Error de JS plano', () => {
-    const msg = friendlyError(new Error('schema interno: tabla clients_secretas'));
-    expect(msg).toBe('Ocurrio un error inesperado.');
+    const msg = friendlyError(new Error('schema interno: tabla clients_secretas'), 'common.placeholderIso');
+    expect(msg).toBe('AAAA-MM-DD');
     expect(msg).not.toContain('clients_secretas');
   });
 });

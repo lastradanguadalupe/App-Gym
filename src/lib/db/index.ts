@@ -7,6 +7,7 @@
 
 export * from './catalog';
 export * from './content';
+export * from './measurements';
 export * from './profiles';
 export * from './routines';
 export * from './schedule';

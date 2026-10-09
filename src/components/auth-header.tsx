@@ -3,7 +3,9 @@ import { StyleSheet, View } from 'react-native';
 
 import { ThemedText } from '@/components/themed-text';
 import { gradientStyle, Gradients, Radius, Shadows, Spacing } from '@/constants/theme';
+import { useI18n } from '@/context/i18n';
 import { useTheme } from '@/hooks/use-theme';
+import { t } from '@/i18n';
 
 type Props = {
   title: string;
@@ -31,14 +33,16 @@ export function AuthHeader({ title, subtitle }: Props) {
   );
 }
 
-export function AuthDivider({ label = 'o con tu email' }: { label?: string }) {
+export function AuthDivider({ label }: { label?: string }) {
   const theme = useTheme();
+  // Se suscribe al idioma para que el separador cambie al elegir otro.
+  useI18n();
 
   return (
     <View style={styles.divider}>
       <View style={[styles.line, { backgroundColor: theme.border }]} />
       <ThemedText type="small" themeColor="textSecondary">
-        {label}
+        {label ?? t('common.oConTuEmail')}
       </ThemedText>
       <View style={[styles.line, { backgroundColor: theme.border }]} />
     </View>

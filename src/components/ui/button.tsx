@@ -37,10 +37,16 @@ export function Button({
   const theme = useTheme();
   const isPrimary = variant === 'primary';
 
+  /**
+   * `primary` es LA acción principal de la pantalla y la única que lleva el
+   * azul de marca plein: relleno `primary` (con degradado del mismo azul) y
+   * texto `onPrimary`. `secondary` y `outline` bajan a la superficie teñida y al
+   * texto aclarado para no competir con ella.
+   */
   const palette: Record<Variant, { bg: string; fg: string; border?: string }> = {
-    primary: { bg: theme.tint, fg: theme.tintText },
-    secondary: { bg: theme.brandSurface, fg: theme.brandBright, border: theme.border },
-    outline: { bg: 'transparent', fg: theme.brandBright, border: theme.borderStrong },
+    primary: { bg: theme.primary, fg: theme.onPrimary },
+    secondary: { bg: theme.surfaceBrand, fg: theme.primaryBright, border: theme.border },
+    outline: { bg: 'transparent', fg: theme.primaryBright, border: theme.borderStrong },
     ghost: { bg: 'transparent', fg: theme.textSecondary },
     danger: { bg: theme.danger, fg: theme.onDanger },
   };

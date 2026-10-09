@@ -1,23 +1,26 @@
 import { useEffect, useState } from 'react';
 import { StyleSheet, View } from 'react-native';
-import { router } from 'expo-router';
 
 import { ThemedText } from '@/components/themed-text';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Chip } from '@/components/ui/chip';
 import { Field } from '@/components/ui/field';
-import { IconAction } from '@/components/ui/icon-action';
 import { Screen, Section } from '@/components/ui/screen';
+import { Spacing } from '@/constants/theme';
 import { useSession } from '@/context/session';
-import { fetchProfile, updateProfileName, upsertClientDetails } from '@/lib/db';
+import { fetchProfile, upsertClientDetails } from '@/lib/db';
 import { computeEdad, parseTags } from '@/lib/format';
-import { gradientStyle, Gradients, Spacing, Radius, Shadows } from '@/constants/theme';
-import { useTheme } from '@/hooks/use-theme';
 import { t } from '@/i18n';
 import type { Experiencia, Profile } from '@/types';
 
 /**
+ * Cuestionario de la rutina.
+ *
+ * Solo lo que el profe necesita para armar el plan. El nombre, el username y
+ * las preferencias de cuenta viven en Ajustes: acá el foco es uno y el botón de
+ * guardar es el de esta pantalla.
+ *
  * El rótulo de cada nivel se resuelve en render, no en un array de constantes:
  * `t()` lee el idioma activo, y un `const` de módulo se calcularía una sola vez
  * con el idioma del primer mount.
@@ -25,19 +28,17 @@ import type { Experiencia, Profile } from '@/types';
 function experienciaLabel(value: Experiencia): string {
   switch (value) {
     case 'inicio':
-      return t('perfil.expPrincipiante');
+      return t('experiencia.inicio');
     case 'intermedio':
-      return t('perfil.expIntermedio');
+      return t('experiencia.intermedio');
     case 'avanzado':
-      return t('perfil.expAvanzado');
+      return t('experiencia.avanzado');
   }
 }
 
-export default function PerfilScreen() {
-  const theme = useTheme();
+export default function MisDatosScreen() {
   const { session, profile, clientDetails, refreshProfile } = useSession();
 
-  const [name, setName] = useState('');
   const [fechaNacimiento, setFechaNacimiento] = useState('');
   const [altura, setAltura] = useState('');
   const [peso, setPeso] = useState('');
@@ -51,14 +52,22 @@ export default function PerfilScreen() {
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    if (!profile) return;
-    setName(profile.name ?? '');
-    if (profile.profe_id) {
-      fetchProfile(profile.profe_id)
-        .then(setProfe)
-        .catch(() => setProfe(null));
+    if (!profile?.profe_id) {
+      setProfe(null);
+      return;
     }
-  }, [profile]);
+    let active = true;
+    fetchProfile(profile.profe_id)
+      .then((next) => {
+        if (active) setProfe(next);
+      })
+      .catch(() => {
+        if (active) setProfe(null);
+      });
+    return () => {
+      active = false;
+    };
+  }, [profile?.profe_id]);
 
   useEffect(() => {
     if (!clientDetails) return;
@@ -73,13 +82,6 @@ export default function PerfilScreen() {
 
   const uid = session?.user?.id;
   const edad = computeEdad(clientDetails?.fecha_nacimiento ?? null);
-  const initials =
-    (profile?.name ?? '')
-      .split(' ')
-      .filter(Boolean)
-      .slice(0, 2)
-      .map((w) => w[0]?.toUpperCase() ?? '')
-      .join('') || '?';
 
   async function handleSave() {
     if (!uid) return;
@@ -87,9 +89,6 @@ export default function PerfilScreen() {
     setMessage(null);
     setError(null);
     try {
-      if (name.trim() && name.trim() !== profile?.name) {
-        await updateProfileName(uid, name.trim());
-      }
       await upsertClientDetails(uid, {
         fecha_nacimiento: fechaNacimiento.trim() || null,
         altura_cm: altura ? Number(altura) : null,
@@ -111,49 +110,18 @@ export default function PerfilScreen() {
 
   return (
     <Screen>
-      {/* Los NativeTabs no traen header, así que este bloque hace de cabecera de
-          la pantalla y el engranaje vive acá: es el mismo lugar en native y web. */}
-      <View style={styles.identity}>
-        <View style={[styles.avatar, { backgroundColor: theme.brand }, gradientStyle(Gradients.accent)]}>
-          <ThemedText type="subtitle" themeColor="tintText">
-            {initials}
-          </ThemedText>
-        </View>
-        <View style={styles.identityText}>
-          <ThemedText type="display" style={styles.identityName}>
-            {profile?.name ?? t('perfil.tuPerfil')}
-          </ThemedText>
-          <ThemedText type="small" themeColor="textSecondary">
-            {profile?.role === 'profe' ? t('perfil.profe') : t('perfil.alumno')}
-            {profile?.email ? ` · ${profile.email}` : ''}
-          </ThemedText>
-        </View>
-        <IconAction
-          icon="cog-outline"
-          label={t('ajustes.title')}
-          color={theme.textSecondary}
-          background={theme.backgroundElement}
-          onPress={() => router.push('/perfil/ajustes')}
-        />
-      </View>
-
-      <Section title={t('perfil.datosCuenta')}>
-        <Card>
-          <Field label={t('perfil.nombre')} value={name} onChangeText={setName} />
-          {profe ? (
-            <ThemedText type="small" themeColor="textSecondary">
-              {t('perfil.tuProfe')}: <ThemedText type="smallBold">{profe.name ?? profe.email}</ThemedText>
-            </ThemedText>
-          ) : null}
-        </Card>
-      </Section>
+      {profe ? (
+        <ThemedText type="small" themeColor="textSecondary">
+          {t('perfil.tuProfe')}:{' '}
+          <ThemedText type="smallBold">{profe.name ?? profe.email}</ThemedText>
+        </ThemedText>
+      ) : null}
 
       <Section title={t('perfil.informacionRutina')}>
         <Card>
           {edad != null ? (
             <ThemedText type="small" themeColor="textSecondary">
-              {t('perfil.edadAnios', { edad })} · {clientDetails?.altura_cm ?? '—'} cm ·{' '}
-              {clientDetails?.peso_kg ?? '—'} kg
+              {t('perfil.edadAnios', { edad })}
             </ThemedText>
           ) : null}
 
@@ -167,7 +135,7 @@ export default function PerfilScreen() {
           <View style={styles.row}>
             <View style={styles.half}>
               <Field
-                label={`${t('perfil.altura')} (cm)`}
+                label={`${t('perfil.altura')} (${t('perfil.cm')})`}
                 value={altura}
                 onChangeText={setAltura}
                 keyboardType="decimal-pad"
@@ -175,7 +143,7 @@ export default function PerfilScreen() {
             </View>
             <View style={styles.half}>
               <Field
-                label={`${t('perfil.peso')} (kg)`}
+                label={`${t('perfil.peso')} (${t('perfil.kg')})`}
                 value={peso}
                 onChangeText={setPeso}
                 keyboardType="decimal-pad"
@@ -221,17 +189,6 @@ export default function PerfilScreen() {
 }
 
 const styles = StyleSheet.create({
-  identity: { flexDirection: 'row', alignItems: 'center', gap: Spacing.three },
-  avatar: {
-    width: 64,
-    height: 64,
-    borderRadius: Radius.pill,
-    alignItems: 'center',
-    justifyContent: 'center',
-    ...Shadows.card,
-  },
-  identityText: { flex: 1, gap: Spacing.one },
-  identityName: { fontSize: 26, lineHeight: 32 },
   group: { gap: Spacing.md, paddingTop: Spacing.one },
   row: { flexDirection: 'row', gap: Spacing.two, flexWrap: 'wrap' },
   half: { flex: 1, minWidth: 120 },

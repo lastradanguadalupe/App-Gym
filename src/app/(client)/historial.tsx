@@ -11,15 +11,18 @@ import { fetchSessions } from '@/lib/db';
 import { formatDateTime, formatMinutes, regionLabel } from '@/lib/format';
 import { Radius, Spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
-import type { WorkoutSession } from '@/types';
+import { useI18n } from '@/context/i18n';
+import { t } from '@/i18n';
+import type { Region, WorkoutSession } from '@/types';
 
 type SessionRow = WorkoutSession & {
-  routine_blocks?: { id: number; name: string; region: string } | null;
+  routine_blocks?: { id: number; name: string; region: Region } | null;
 };
 
 export default function HistorialScreen() {
   const { session } = useSession();
   const theme = useTheme();
+  const { locale } = useI18n();
   const [sessions, setSessions] = useState<SessionRow[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -57,11 +60,11 @@ export default function HistorialScreen() {
   if (!sessions.length) {
     return (
       <Screen>
-        <ThemedText type="display">Historial</ThemedText>
+        <ThemedText type="display">{t('nav.historial')}</ThemedText>
         <EmptyState
           icon="clock-outline"
-          title="Todavía no entrenaste"
-          subtitle="Cuando completes o finalices un entrenamiento, vas a ver tu historial acá."
+          title={t('historial.sinEntrenos')}
+          subtitle={t('historial.sinEntrenosSubtitulo')}
         />
       </Screen>
     );
@@ -69,19 +72,14 @@ export default function HistorialScreen() {
 
   return (
     <Screen>
-      <ThemedText type="display">Historial</ThemedText>
+      <ThemedText type="display">{t('nav.historial')}</ThemedText>
       <ThemedText type="small" themeColor="textSecondary">
-        Cada entrenamiento que completás queda registrado acá.
+        {t('historial.subtitulo')}
       </ThemedText>
 
       <View style={styles.statsRow}>
-        <StatCard icon="dumbbell" value={String(sessions.length)} label="Entrenamientos" />
-        <StatCard
-          icon="timer-outline"
-          value={formatMinutes(totalMinutes)}
-          label="Tiempo"
-          tint={theme.brandBright}
-        />
+        <StatCard icon="dumbbell" value={String(sessions.length)} label={t('inicio.entrenamientos')} />
+        <StatCard icon="timer-outline" value={formatMinutes(locale, totalMinutes)} label={t('historial.tiempo')} />
       </View>
 
       {sessions.map((s) => (
@@ -89,16 +87,18 @@ export default function HistorialScreen() {
           <View style={styles.sessionHeader}>
             <View style={styles.flex}>
               <ThemedText type="smallBold">
-                {s.routine_blocks?.name ?? 'Entrenamiento'}
+                {s.routine_blocks?.name ?? t('inicio.entrenamiento')}
               </ThemedText>
               <ThemedText type="small" themeColor="textSecondary">
-                {formatDateTime(s.completed_on)}
-                {s.routine_blocks ? ` · ${regionLabel(s.routine_blocks.region)}` : ''}
+                {formatDateTime(s.completed_on, locale)}
+                {s.routine_blocks ? ` · ${regionLabel(locale, s.routine_blocks.region)}` : ''}
               </ThemedText>
             </View>
-            <View style={[styles.duration, { backgroundColor: theme.brandSurface }]}>
-              <ThemedText type="smallBold" themeColor="brandBright">
-                {s.duration_minutes != null ? formatMinutes(s.duration_minutes) : 'Completo'}
+            <View style={[styles.duration, { backgroundColor: theme.surfaceBrand, borderColor: theme.primaryBorder }]}>
+              <ThemedText type="smallBold" themeColor="primaryBright">
+                {s.duration_minutes != null
+                  ? formatMinutes(locale, s.duration_minutes)
+                  : t('historial.completo')}
               </ThemedText>
             </View>
           </View>
@@ -107,7 +107,10 @@ export default function HistorialScreen() {
 
       {withDuration > 0 ? (
         <ThemedText type="small" themeColor="textSecondary" style={styles.totalNote}>
-          {withDuration} de {sessions.length} entrenamientos con tiempo registrado por el reloj.
+          {t('historial.conTiempo', {
+            conTiempo: withDuration,
+            total: sessions.length,
+          })}
         </ThemedText>
       ) : null}
     </Screen>
@@ -124,6 +127,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: Spacing.md,
     paddingVertical: Spacing.one,
     borderRadius: Radius.pill,
+    borderWidth: StyleSheet.hairlineWidth,
   },
   totalNote: { textAlign: 'center' },
 });

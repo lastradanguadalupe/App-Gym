@@ -12,6 +12,7 @@ import { ThemedText } from '@/components/themed-text';
 import { signInWithGoogle } from '@/lib/oauth';
 import { supabase } from '@/lib/supabase';
 import { Spacing } from '@/constants/theme';
+import { t } from '@/i18n';
 
 export default function LoginScreen() {
   const [email, setEmail] = useState('');
@@ -22,7 +23,7 @@ export default function LoginScreen() {
 
   async function handleLogin() {
     if (!email.trim() || !password) {
-      setError('Completá email y contraseña.');
+      setError(t('auth.faltanCampos'));
       return;
     }
     setLoading(true);
@@ -31,7 +32,7 @@ export default function LoginScreen() {
     setLoading(false);
     if (error) {
       console.warn('[auth] signInWithPassword fallo', error);
-      setError('Credenciales inválidas. Revisá tu email y contraseña.');
+      setError(t('auth.credencialesInvalidas'));
     }
   }
 
@@ -42,7 +43,7 @@ export default function LoginScreen() {
       await signInWithGoogle();
     } catch (e) {
       console.warn('Error con Google', e);
-      setError('No se pudo iniciar sesión con Google. Probá de nuevo.');
+      setError(t('auth.googleError'));
     } finally {
       setGoogleLoading(false);
     }
@@ -50,10 +51,7 @@ export default function LoginScreen() {
 
   return (
     <Screen>
-      <AuthHeader
-        title="Bienvenido de nuevo"
-        subtitle="Ingresá para ver tu rutina y registrar tus entrenamientos."
-      />
+      <AuthHeader title={t('auth.bienvenido')} subtitle={t('auth.bienvenidoSubtitulo')} />
 
       <Card>
         <GoogleButton onPress={handleGoogle} loading={googleLoading} />
@@ -61,16 +59,16 @@ export default function LoginScreen() {
         <AuthDivider />
 
         <Field
-          label="Email"
+          label={t('ajustes.email')}
           value={email}
           onChangeText={setEmail}
           autoCapitalize="none"
           autoComplete="email"
           keyboardType="email-address"
-          placeholder="tucorreo@mail.com"
+          placeholder={t('common.placeholderEmail')}
         />
         <Field
-          label="Contraseña"
+          label={t('ajustes.contrasena')}
           value={password}
           onChangeText={setPassword}
           secureTextEntry
@@ -78,14 +76,14 @@ export default function LoginScreen() {
           placeholder="••••••••"
         />
         {error ? <ThemedText themeColor="danger">{error}</ThemedText> : null}
-        <Button label="Ingresar" icon="login" onPress={handleLogin} loading={loading} />
+        <Button label={t('auth.ingresar')} icon="login" onPress={handleLogin} loading={loading} />
       </Card>
 
       <ThemedText type="small" style={styles.footer}>
-        <Link href="/register">¿Todavía no tenés cuenta? Registrate</Link>
+        <Link href="/register">{t('auth.sinCuenta')}</Link>
       </ThemedText>
       <ThemedText type="small" themeColor="textSecondary" style={styles.footer}>
-        <Link href="/profe">¿Sos entrenador? Acceso de staff</Link>
+        <Link href="/profe">{t('auth.accesoStaff')}</Link>
       </ThemedText>
     </Screen>
   );

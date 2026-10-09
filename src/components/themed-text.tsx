@@ -25,7 +25,7 @@ export function ThemedText({ style, type = 'default', themeColor, ...rest }: The
         type === 'link' && styles.link,
         type === 'linkPrimary' && styles.linkPrimary,
         type === 'code' && styles.code,
-        type === 'linkPrimary' && { color: theme.brandBright },
+        type === 'linkPrimary' && { color: theme.primaryBright },
         style,
       ]}
       {...rest}

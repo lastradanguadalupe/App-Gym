@@ -12,17 +12,24 @@ import { Screen } from '@/components/ui/screen';
 import { useSession } from '@/context/session';
 import { fetchActiveRoutineForClient, fetchExercise } from '@/lib/db';
 import { regionLabel } from '@/lib/format';
+import { compactSummary } from '@/lib/routine-params';
 import { Radius, Spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
-import type { Exercise } from '@/types';
+import { useI18n } from '@/context/i18n';
+import { t } from '@/i18n';
+import type { Exercise, Region, RoutineBlockExercise } from '@/types';
 
 export default function ExerciseDetailScreen() {
   const params = useLocalSearchParams<{ id: string; blockId?: string }>();
   const { session } = useSession();
   const theme = useTheme();
+  const { locale } = useI18n();
 
-  const [exercise, setExercise] = useState<(Exercise & { muscle_groups?: { name: string; region: string } }) | null>(null);
-  const [context, setContext] = useState<string | null>(null);
+  const [exercise, setExercise] = useState<(Exercise & { muscle_groups?: { name: string; region: Region } }) | null>(null);
+  const [context, setContext] = useState<{
+    blockName: string | null;
+    rbe: Pick<RoutineBlockExercise, 'sets' | 'reps' | 'rest_seconds' | 'peso_kg'>;
+  } | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -40,9 +47,15 @@ export default function ExerciseDetailScreen() {
           const block = activeRoutine.routine_blocks.find((b) => b.id === Number(params.blockId));
           const rbe = block?.routine_block_exercises.find((x) => x.exercise_id === id);
           if (rbe) {
-            setContext(
-              `${block?.name ?? 'Bloque'} · ${rbe.sets} × ${rbe.reps} · ${rbe.rest_seconds}s de descanso`
-            );
+            setContext({
+              blockName: block?.name ?? null,
+              rbe: {
+                sets: rbe.sets,
+                reps: rbe.reps,
+                rest_seconds: rbe.rest_seconds,
+                peso_kg: rbe.peso_kg,
+              },
+            });
           }
         }
       } catch (e) {
@@ -67,7 +80,7 @@ export default function ExerciseDetailScreen() {
   if (!exercise) {
     return (
       <Screen>
-        <ThemedText type="display">Ejercicio no encontrado</ThemedText>
+        <ThemedText type="display">{t('rutina.noEncontrado')}</ThemedText>
       </Screen>
     );
   }
@@ -89,33 +102,33 @@ export default function ExerciseDetailScreen() {
         <View style={[styles.image, { backgroundColor: theme.backgroundElement }]}>
           <SymbolView tintColor={theme.textSecondary} name="dumbbell" size={48} />
           <ThemedText type="small" themeColor="textSecondary">
-            Foto pendiente · {muscle?.name ?? ''}
+            {t('rutina.fotoPendiente', { region: muscle?.name ?? '' })}
           </ThemedText>
         </View>
       )}
 
       <View style={styles.chipsRow}>
         {muscle ? <Chip label={muscle.name} selected /> : null}
-        {muscle ? <Chip label={regionLabel(muscle.region as never)} /> : null}
+        {muscle ? <Chip label={regionLabel(locale, muscle.region)} /> : null}
       </View>
 
       {context ? (
         <Card tone="brand">
           <ThemedText type="eyebrow" themeColor="brandBright">
-            Parámetros en tu rutina
+            {t('rutina.parametrosEnRutina')}
           </ThemedText>
           <ThemedText type="default" themeColor="text">
-            {context}
+            {`${context.blockName ?? t('rutina.bloqueGenerico')} · ${compactSummary(locale, context.rbe)}`}
           </ThemedText>
         </Card>
       ) : null}
 
       <Card>
         <ThemedText type="eyebrow" themeColor="textSecondary">
-          Cómo hacerlo
+          {t('rutina.comoHacerlo')}
         </ThemedText>
         <ThemedText type="default">
-          {exercise.instructions ?? 'Sin indicaciones por el momento. Consultá a tu profe.'}
+          {exercise.instructions ?? t('rutina.sinInstrucciones')}
         </ThemedText>
       </Card>
 
@@ -125,7 +138,7 @@ export default function ExerciseDetailScreen() {
             <View style={styles.videoRow}>
               <MaterialCommunityIcons name="play-circle-outline" size={22} color={theme.brandBright} />
               <ThemedText type="smallBold" themeColor="brandBright">
-                Ver video de referencia
+                {t('rutina.verVideo')}
               </ThemedText>
             </View>
           </Card>

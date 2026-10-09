@@ -12,20 +12,33 @@ type Props = {
   children: ReactNode;
   padded?: boolean;
   style?: object;
-  tone?: 'surface' | 'brand' | 'flat';
+  tone?: 'surface' | 'elevated' | 'brand' | 'flat';
 };
 
+/**
+ * Tarjeta base. El `tone` elige la superficie de la rampa neutra, salvo `brand`
+ * que usa la única superficie teñida del sistema (`surfaceBrand` + borde
+ * `primaryBorder`) para lo que merece destacarse: la cita de la pantalla de
+ * inicio y las cabeceras de rutina.
+ */
 export function Card({ children, padded = true, style, tone = 'surface' }: Props) {
   const theme = useTheme();
+
+  const surfaces = {
+    surface: { bg: theme.surface, edge: theme.border, raised: true },
+    elevated: { bg: theme.surfaceElevated, edge: theme.border, raised: true },
+    brand: { bg: theme.surfaceBrand, edge: theme.primaryBorder, raised: false },
+    flat: { bg: theme.background, edge: theme.border, raised: false },
+  } as const;
+
+  const { bg, edge, raised } = surfaces[tone];
 
   return (
     <View
       style={StyleSheet.flatten([
         styles.card,
-        tone === 'surface' && [styles.elevated, { backgroundColor: theme.backgroundElement }],
-        tone === 'brand' && { backgroundColor: theme.brandSurface },
-        tone === 'flat' && { backgroundColor: theme.background },
-        { borderColor: theme.border, borderWidth: StyleSheet.hairlineWidth },
+        raised && styles.raised,
+        { backgroundColor: bg, borderColor: edge, borderWidth: StyleSheet.hairlineWidth },
         padded && styles.padded,
         style,
       ])}>
@@ -34,25 +47,30 @@ export function Card({ children, padded = true, style, tone = 'surface' }: Props
   );
 }
 
-/** Tarjeta de estadística: ícono + número grande + rótulo. */
+/**
+ * Tarjeta de estadística: ícono + número grande + rótulo.
+ *
+ * Un SOLO tratamiento para todas, sin prop de color: los indicadores de una
+ * misma fila ("Tu progreso") miden lo mismo, así que pintar uno de verde sería
+ * inventar una jerarquía que el dato no tiene. El chip usa el teñido de
+ * `primary` y el valor `textPrimary`; el verde queda para estados positivos
+ * reales (entrenamiento completado, sesión en curso).
+ */
 export function StatCard({
   icon,
   value,
   label,
-  tint,
 }: {
   icon: IconName;
   value: string;
   label: string;
-  tint?: string;
 }) {
   const theme = useTheme();
-  const color = tint ?? theme.brandBright;
 
   return (
     <Card style={styles.stat}>
-      <View style={[styles.statIcon, { backgroundColor: `${color}1F`, borderColor: `${color}33` }]}>
-        <MaterialCommunityIcons name={icon} size={20} color={color} />
+      <View style={[styles.statIcon, { backgroundColor: theme.primarySubtle, borderColor: theme.primaryBorder }]}>
+        <MaterialCommunityIcons name={icon} size={20} color={theme.primaryBright} />
       </View>
       <ThemedText type="title" style={styles.statValue}>
         {value}
@@ -92,7 +110,7 @@ const styles = StyleSheet.create({
     borderRadius: Radius.lg,
     gap: Spacing.md,
   },
-  elevated: {
+  raised: {
     ...Shadows.card,
   },
   padded: { padding: Spacing.three },

@@ -1,9 +1,13 @@
 import { Stack } from 'expo-router';
 
+import { useI18n } from '@/context/i18n';
 import { useTheme } from '@/hooks/use-theme';
+import { t } from '@/i18n';
 
 export default function RutinaLayout() {
   const theme = useTheme();
+  // El título del header cambia con el idioma.
+  useI18n();
 
   return (
     <Stack
@@ -15,7 +19,7 @@ export default function RutinaLayout() {
         contentStyle: { backgroundColor: theme.background },
       }}>
       <Stack.Screen name="index" options={{ headerShown: false }} />
-      <Stack.Screen name="[id]" options={{ headerShown: true, title: 'Ejercicio' }} />
+      <Stack.Screen name="[id]" options={{ headerShown: true, title: t('nav.ejercicio') }} />
     </Stack>
   );
 }

@@ -12,12 +12,10 @@ import { fetchProfile } from '@/lib/db';
 import { friendlyError } from '@/lib/errors';
 import { authCallbackUri } from '@/lib/oauth';
 import { supabase } from '@/lib/supabase';
-import { validatePassword } from '@/lib/validation';
+import { PASSWORD_MIN_LENGTH, validatePassword } from '@/lib/validation';
 import { gradientStyle, Gradients, Radius, Shadows, Spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
-
-const NOT_ALLOWED =
-  'Ese email no está habilitado como entrenador. Pedile a un profe que te agregue desde su panel.';
+import { t } from '@/i18n';
 
 /**
  * Alta de entrenador. A propósito es una pantalla aparte de `/register` (la de
@@ -35,12 +33,12 @@ export default function ProfeRegisterScreen() {
 
   async function handleRegister() {
     if (!name.trim() || !email.trim()) {
-      setError('Completá nombre y email.');
+      setError(t('auth.faltanCamposRegistro'));
       return;
     }
     const passwordCheck = validatePassword(password);
     if (!passwordCheck.ok) {
-      setError(passwordCheck.message);
+      setError(t(passwordCheck.key, { min: PASSWORD_MIN_LENGTH }));
       return;
     }
     setLoading(true);
@@ -58,17 +56,14 @@ export default function ProfeRegisterScreen() {
     if (error) {
       setLoading(false);
       console.warn('[auth] signUp (profe) fallo', error);
-      setError(friendlyError(error, 'No se pudo crear la cuenta.'));
+      setError(friendlyError(error, 'auth.crearCuentaError'));
       return;
     }
 
     if (!data.session || !data.user) {
       setLoading(false);
-      Alert.alert(
-        'Revisá tu email',
-        'Te enviamos un mail de confirmación. Activá la cuenta y después ingresá.'
-      );
-      setError('Te enviamos un mail de confirmación. Revisá tu casilla (y spam).');
+      Alert.alert(t('auth.revisaTuEmail'), t('auth.emailConfirmacion'));
+      setError(t('auth.emailConfirmacionCorta'));
       return;
     }
 
@@ -83,7 +78,7 @@ export default function ProfeRegisterScreen() {
     if (!isProfe) {
       await supabase.auth.signOut();
       setLoading(false);
-      setError(NOT_ALLOWED);
+      setError(t('auth.profeNoHabilitado'));
       return;
     }
 
@@ -103,48 +98,47 @@ export default function ProfeRegisterScreen() {
         </View>
         <View style={styles.headerText}>
           <ThemedText type="eyebrow" themeColor="textSecondary">
-            Acceso de entrenadores
+            {t('auth.accesoEntrenadores')}
           </ThemedText>
-          <ThemedText type="display">Panel del profe</ThemedText>
+          <ThemedText type="display">{t('admin.panelProfe')}</ThemedText>
           <ThemedText type="default" themeColor="textSecondary">
-            Gestioná alumnos, rutinas y contenido del gimnasio.
+            {t('auth.panelProfeSubtitulo')}
           </ThemedText>
         </View>
       </View>
 
       <Card>
         <ThemedText type="small" themeColor="textSecondary">
-          Tu cuenta se activa solo si un profe ya habilitó tu email. Si sos el primero
-          del gimnasio, corré el script de bootstrap en el panel de Supabase.
+          {t('auth.profeAllowList')}
         </ThemedText>
 
         <Field
-          label="Nombre"
+          label={t('common.nombre')}
           value={name}
           onChangeText={setName}
-          placeholder="Cómo te llamás"
+          placeholder={t('auth.placeholderComoTeLlamas')}
         />
         <Field
-          label="Email"
+          label={t('ajustes.email')}
           value={email}
           onChangeText={setEmail}
           autoCapitalize="none"
           autoComplete="email"
           keyboardType="email-address"
-          placeholder="tu@mail.com"
+          placeholder={t('common.placeholderEmailProfe')}
         />
         <Field
-          label="Contraseña"
+          label={t('ajustes.contrasena')}
           value={password}
           onChangeText={setPassword}
           secureTextEntry
           autoComplete="new-password"
-          placeholder="Mínimo 6 caracteres"
+          placeholder={t('ajustes.contrasenaMuyCorta', { min: PASSWORD_MIN_LENGTH })}
         />
 
         {error ? <ThemedText themeColor="danger">{error}</ThemedText> : null}
         <Button
-          label="Crear cuenta de entrenador"
+          label={t('auth.crearCuentaEntrenador')}
           icon="account-tie-outline"
           onPress={handleRegister}
           loading={loading}
@@ -153,10 +147,10 @@ export default function ProfeRegisterScreen() {
 
       <View style={styles.links}>
         <ThemedText type="small" style={styles.center}>
-          <Link href="/login">Ya tengo cuenta, quiero ingresar</Link>
+          <Link href="/login">{t('auth.yaTengoCuenta')}</Link>
         </ThemedText>
         <ThemedText type="small" themeColor="textSecondary" style={styles.center}>
-          <Link href="/register">Soy alumno, quiero registrarme</Link>
+          <Link href="/register">{t('auth.soyAlumno')}</Link>
         </ThemedText>
       </View>
     </Screen>

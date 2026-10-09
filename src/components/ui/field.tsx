@@ -4,7 +4,9 @@ import { MaterialCommunityIcons } from '@expo/vector-icons';
 
 import { ThemedText } from '@/components/themed-text';
 import { Radius, Spacing } from '@/constants/theme';
+import { useI18n } from '@/context/i18n';
 import { useTheme } from '@/hooks/use-theme';
+import { t } from '@/i18n';
 
 type Props = TextInputProps & {
   label?: string;
@@ -16,6 +18,8 @@ export function Field({ label, error, hint, secureTextEntry, style, ...rest }: P
   const theme = useTheme();
   const [visible, setVisible] = useState(false);
   const [focused, setFocused] = useState(false);
+  // El label de accesibilidad del toggle cambia con el idioma.
+  useI18n();
 
   return (
     <View style={styles.wrap}>
@@ -50,7 +54,7 @@ export function Field({ label, error, hint, secureTextEntry, style, ...rest }: P
             onPress={() => setVisible((v) => !v)}
             hitSlop={10}
             accessibilityRole="button"
-            accessibilityLabel={visible ? 'Ocultar contraseña' : 'Mostrar contraseña'}
+            accessibilityLabel={visible ? t('common.ocultarContrasena') : t('common.mostrarContrasena')}
             style={styles.toggle}>
             <MaterialCommunityIcons
               name={visible ? 'eye-off-outline' : 'eye-outline'}

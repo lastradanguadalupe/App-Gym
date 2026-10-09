@@ -8,9 +8,10 @@ import { AnimatedSplashOverlay } from '@/components/animated-icon';
 import { ThemedText } from '@/components/themed-text';
 import { Button } from '@/components/ui/button';
 import { Spacing } from '@/constants/theme';
-import { I18nProvider } from '@/context/i18n';
+import { I18nProvider, useI18n } from '@/context/i18n';
 import { SessionProvider, useSession } from '@/context/session';
 import { useTheme } from '@/hooks/use-theme';
+import { t } from '@/i18n';
 
 SplashScreen.preventAutoHideAsync();
 
@@ -26,19 +27,20 @@ function BootingScreen() {
 function SinPerfilScreen() {
   const theme = useTheme();
   const { refreshProfile, signOut } = useSession();
+  // Se suscribe al idioma para que el error también cambie al elegir otro.
+  useI18n();
   const [retrying, setRetrying] = useState(false);
 
   return (
     <ScrollView
       contentContainerStyle={[styles.center, styles.padded, { backgroundColor: theme.background }]}>
-      <ThemedText type="display">No pudimos cargar tu perfil</ThemedText>
+      <ThemedText type="display">{t('common.errorCargarPerfil')}</ThemedText>
       <ThemedText type="small" themeColor="textSecondary" style={styles.text}>
-        Tu cuenta existe pero no tiene un perfil asociado. Si sos alumno, pedile a tu profe que
-        te cree uno. Si sos entrenador, revisá que tu email esté habilitado desde el panel.
+        {t('common.reintentarPerfil')}
       </ThemedText>
       <View style={styles.actions}>
         <Button
-          label="Reintentar"
+          label={t('common.reintentar')}
           icon="refresh"
           loading={retrying}
           onPress={async () => {
@@ -50,7 +52,12 @@ function SinPerfilScreen() {
             }
           }}
         />
-        <Button label="Cerrar sesión" variant="secondary" icon="logout" onPress={() => void signOut()} />
+        <Button
+          label={t('common.cerrarSesion')}
+          variant="secondary"
+          icon="logout"
+          onPress={() => void signOut()}
+        />
       </View>
     </ScrollView>
   );
@@ -63,7 +70,19 @@ function RootNavigator() {
   const isProfe = !!session && profile?.role === 'profe';
   const needsOnboarding = isCliente && !clientDetails;
 
-  if (loading || (!!session && profileLoading)) {
+  /**
+   * El splash solo mientras NO hay perfil todavía.
+   *
+   * `refreshProfile()` pone `profileLoading` en true, y usar ese flag a secas
+   * desmontaba el navegador `(client)` entero en cada guardado: al remontar,
+   * el stack volvía a su ruta inicial y el usuario caía en la pestaña de Inicio
+   * sin haber tocado nada. Un refresco en segundo plano tiene que dejar la UI
+   * montada; si el refresco falla, `profile` queda en null y el error se ve
+   * igual en `SinPerfilScreen`.
+   */
+  const booting = loading || (!!session && profileLoading && !profile);
+
+  if (booting) {
     return <BootingScreen />;
   }
 

@@ -13,9 +13,13 @@ type Props = {
 };
 
 /**
- * Header de marca: degradado azul, curva inferior y contenido alineado con el
- * padding de la pantalla. Usar dentro de un `Screen padded={false}` para que
- * el degradado llegue de borde a borde.
+ * Header de marca: degradado del azul de marca, curva inferior y contenido
+ * alineado con el padding de la pantalla. Usar dentro de un `Screen
+ * padded={false}` para que el degradado llegue de borde a borde.
+ *
+ * El degradado (`Gradients.hero`) y el color sólido de respaldo son ambos
+ * derivada de `primary`: en web, donde react-native-web no entiende
+ * `experimental_backgroundImage`, lo que se ve es el mismo azul plano.
  */
 export function HeroHeader({ eyebrow, title, subtitle, children }: Props) {
   const theme = useTheme();
@@ -24,20 +28,20 @@ export function HeroHeader({ eyebrow, title, subtitle, children }: Props) {
     <View
       style={[
         styles.hero,
-        { backgroundColor: theme.brandDeep },
+        { backgroundColor: theme.primaryDeep },
         gradientStyle(Gradients.hero),
       ]}>
       <View style={styles.content}>
         {eyebrow ? (
-          <ThemedText type="eyebrow" style={{ color: theme.brandBright }}>
+          <ThemedText type="eyebrow" themeColor="primaryBright">
             {eyebrow}
           </ThemedText>
         ) : null}
-        <ThemedText type="display" style={{ color: theme.text }}>
+        <ThemedText type="display" themeColor="textPrimary">
           {title}
         </ThemedText>
         {subtitle ? (
-          <ThemedText type="small" style={{ color: theme.textSecondary }}>
+          <ThemedText type="small" themeColor="textSecondary">
             {subtitle}
           </ThemedText>
         ) : null}

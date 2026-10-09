@@ -5,12 +5,10 @@ import { Dimensions, StyleSheet, View } from 'react-native';
 import Animated, { Easing, Keyframe } from 'react-native-reanimated';
 import { scheduleOnRN } from 'react-native-worklets';
 
-import { gradientStyle, Colors } from '@/constants/theme';
+import { gradientStyle, Colors, Gradients } from '@/constants/theme';
 
 const INITIAL_SCALE_FACTOR = Dimensions.get('screen').height / 90;
 const DURATION = 600;
-
-const MARK_GRADIENT = 'linear-gradient(180deg, #3D9BFF, #0B1E38)';
 
 export function AnimatedSplashOverlay() {
   const [animate, setAnimate] = useState(false);
@@ -95,12 +93,12 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     backgroundColor: Colors.dark.background,
-    ...gradientStyle(MARK_GRADIENT),
+    ...gradientStyle(Gradients.mark),
   },
   background: {
     borderRadius: 40,
     backgroundColor: Colors.dark.background,
-    ...gradientStyle(MARK_GRADIENT),
+    ...gradientStyle(Gradients.mark),
     width: 128,
     height: 128,
     position: 'absolute',

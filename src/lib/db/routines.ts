@@ -54,12 +54,26 @@ export async function createRoutine(input: {
   return dataOrThrow<{ id: number }>(res).id;
 }
 
-/** Crea rutina, bloques y ejercicios en una sola transaccion (RPC). */
+/** Parámetros de un ejercicio dentro de una rutina nueva. */
+export type NewRoutineExercise = {
+  exerciseId: number;
+  sets: number | null;
+  reps: string | null;
+  restSeconds: number | null;
+  pesoKg: number | null;
+};
+
+/**
+ * Crea rutina, bloques y ejercicios en una sola transaccion (RPC).
+ *
+ * Cada ejercicio viaja con sus parámetros: no hay valores por defecto, y lo que
+ * vaya `null` queda "sin definir" en la base.
+ */
 export async function createRoutineFull(input: {
   cliente_id: string;
   title: string;
   description?: string | null;
-  blocks: { name: string; region: Region; exerciseIds: number[] }[];
+  blocks: { name: string; region: Region; exercises: NewRoutineExercise[] }[];
 }): Promise<number> {
   const res = await supabase.rpc('create_routine_full', {
     p_cliente_id: input.cliente_id,
@@ -68,7 +82,13 @@ export async function createRoutineFull(input: {
     p_blocks: input.blocks.map((b) => ({
       name: b.name,
       region: b.region,
-      exercise_ids: b.exerciseIds.map((id) => ({ id })),
+      exercises: b.exercises.map((ex) => ({
+        exercise_id: ex.exerciseId,
+        sets: ex.sets,
+        reps: ex.reps,
+        rest_seconds: ex.restSeconds,
+        peso_kg: ex.pesoKg,
+      })),
     })),
   });
   if (res.error) throw res.error;
@@ -109,12 +129,19 @@ export async function deleteBlock(id: number): Promise<void> {
   if (res.error) throw res.error;
 }
 
+/**
+ * Agrega un ejercicio a un bloque con los parámetros que eligió el profe.
+ *
+ * No hay defaults: `sets` y `reps` son obligatorios (los valida el formulario y
+ * el RPC), `rest_seconds` y `peso_kg` pueden ser `null` = sin definir.
+ */
 export async function addBlockExercise(input: {
   block_id: number;
   exercise_id: number;
-  sets: number;
-  reps: string;
-  rest_seconds: number;
+  sets: number | null;
+  reps: string | null;
+  rest_seconds: number | null;
+  peso_kg: number | null;
   position: number;
 }): Promise<void> {
   const res = await supabase.rpc('add_exercise_to_block', {
@@ -123,6 +150,7 @@ export async function addBlockExercise(input: {
     p_sets: input.sets,
     p_reps: input.reps,
     p_rest_seconds: input.rest_seconds,
+    p_peso_kg: input.peso_kg,
     p_position: input.position,
   });
   if (res.error) throw res.error;
@@ -135,7 +163,12 @@ export async function deleteBlockExercise(id: number): Promise<void> {
 
 export async function updateBlockExercise(
   id: number,
-  input: { sets?: number; reps?: string; rest_seconds?: number }
+  input: {
+    sets?: number | null;
+    reps?: string | null;
+    rest_seconds?: number | null;
+    peso_kg?: number | null;
+  }
 ): Promise<void> {
   const res = await supabase.from('routine_block_exercises').update(input).eq('id', id);
   if (res.error) throw res.error;

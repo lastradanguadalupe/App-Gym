@@ -12,6 +12,7 @@ import { Screen } from '@/components/ui/screen';
 import { createExercise, deleteExercise, fetchExercises, fetchMuscleGroups, updateExercise } from '@/lib/db';
 import { Spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
+import { t } from '@/i18n';
 import type { Exercise, MuscleGroup } from '@/types';
 
 export default function AdminEjerciciosScreen() {
@@ -53,7 +54,7 @@ export default function AdminEjerciciosScreen() {
     setMessage(null);
     setError(null);
     if (!name.trim() || !muscleId) {
-      setError('Completá nombre y elegí un músculo.');
+      setError(t('admin.faltanNombreMusculo'));
       return;
     }
     setBusy(true);
@@ -61,16 +62,16 @@ export default function AdminEjerciciosScreen() {
       await createExercise({
         muscle_group_id: muscleId,
         name: name.trim(),
-        instructions: instructions.trim() || 'Por completar.',
+        instructions: instructions.trim() || null,
         image_url: imageUrl.trim() || null,
       });
       setName('');
       setInstructions('');
       setImageUrl('');
-      setMessage('Ejercicio agregado al catálogo.');
+      setMessage(t('admin.ejercicioAgregado'));
       await load();
     } catch (e) {
-      setError('No se pudo agregar el ejercicio.');
+      setError(t('admin.ejercicioAgregarError'));
       console.warn(e);
     } finally {
       setBusy(false);
@@ -86,7 +87,7 @@ export default function AdminEjerciciosScreen() {
 
   async function handleSaveEdit(id: number) {
     if (!editName.trim()) {
-      setError('El nombre no puede quedar vacío.');
+      setError(t('ajustes.nombreVacio'));
       return;
     }
     setBusy(true);
@@ -99,7 +100,7 @@ export default function AdminEjerciciosScreen() {
       setEditingId(null);
       await load();
     } catch (e) {
-      setError('No se pudo guardar el ejercicio.');
+      setError(t('admin.ejercicioGuardarError'));
       console.warn(e);
     } finally {
       setBusy(false);
@@ -127,37 +128,42 @@ export default function AdminEjerciciosScreen() {
     <Screen>
       <View style={styles.header}>
         <ThemedText type="eyebrow" themeColor="text">
-          Catálogo
+          {t('admin.catalogo')}
         </ThemedText>
-        <ThemedText type="display">Ejercicios</ThemedText>
+        <ThemedText type="display">{t('admin.ejercicios')}</ThemedText>
         <ThemedText type="small" themeColor="textSecondary">
-          {exercises.length} ejercicios cargados, listos para armar rutinas.
+          {t('admin.ejerciciosCargados', { count: exercises.length })}
         </ThemedText>
       </View>
 
       <Card>
         <ThemedText type="eyebrow" themeColor="textSecondary">
-          Nuevo ejercicio
+          {t('admin.nuevoEjercicio')}
         </ThemedText>
-        <Field label="Nombre" value={name} onChangeText={setName} placeholder="Ej: Press de banca" />
         <Field
-          label="Instrucciones (cómo se hace)"
+          label={t('common.nombre')}
+          value={name}
+          onChangeText={setName}
+          placeholder={t('admin.placeholderEjercicio')}
+        />
+        <Field
+          label={t('common.instruccionesCompleto')}
           value={instructions}
           onChangeText={setInstructions}
           multiline
           numberOfLines={4}
-          placeholder="Describí la ejecución paso a paso..."
+          placeholder={t('common.instruccionesPlaceholder')}
         />
         <Field
-          label="URL de la imagen (opcional)"
+          label={t('common.imagenUrlOpcional')}
           value={imageUrl}
           onChangeText={setImageUrl}
           autoCapitalize="none"
           autoComplete="off"
-          placeholder="https://.../foto.png"
+          placeholder={t('common.placeholderUrl')}
         />
         <ThemedText type="smallBold" themeColor="textSecondary">
-          Grupo muscular
+          {t('admin.grupoMuscular')}
         </ThemedText>
         <View style={styles.chipsRow}>
           {muscleGroups.map((mg) => (
@@ -166,7 +172,12 @@ export default function AdminEjerciciosScreen() {
         </View>
         {message ? <ThemedText themeColor="success">{message}</ThemedText> : null}
         {error ? <ThemedText themeColor="danger">{error}</ThemedText> : null}
-        <Button label="Guardar ejercicio" icon="plus" onPress={handleCreate} loading={busy} />
+        <Button
+          label={t('admin.guardarEjercicio')}
+          icon="plus"
+          onPress={handleCreate}
+          loading={busy}
+        />
       </Card>
 
       {muscleGroups.map((mg) => {
@@ -190,50 +201,50 @@ export default function AdminEjerciciosScreen() {
                   </View>
                   {editingId === ex.id ? (
                     <IconAction
-                      icon="close"
-                      label="Cerrar"
-                      color={theme.textSecondary}
-                      onPress={() => setEditingId(null)}
-                    />
-                  ) : (
-                    <>
-                      <IconAction
-                        icon="pencil-outline"
-                        label="Editar"
-                        color={theme.brandBright}
-                        onPress={() => openEdit(ex)}
+                        icon="close"
+                        label={t('common.cerrar')}
+                        color={theme.textSecondary}
+                        onPress={() => setEditingId(null)}
                       />
-                      <IconAction
-                        icon="trash-can-outline"
-                        label="Borrar"
-                        color={theme.danger}
-                        onPress={() => handleDelete(ex.id)}
-                      />
-                    </>
-                  )}
+                    ) : (
+                      <>
+                        <IconAction
+                          icon="pencil-outline"
+                          label={t('common.editar')}
+                          color={theme.brandBright}
+                          onPress={() => openEdit(ex)}
+                        />
+                        <IconAction
+                          icon="trash-can-outline"
+                          label={t('common.borrar')}
+                          color={theme.danger}
+                          onPress={() => handleDelete(ex.id)}
+                        />
+                      </>
+                    )}
                 </View>
 
                 {editingId === ex.id ? (
                   <View style={styles.editBox}>
-                    <Field label="Nombre" value={editName} onChangeText={setEditName} />
+                    <Field label={t('common.nombre')} value={editName} onChangeText={setEditName} />
                     <Field
-                      label="Instrucciones"
+                      label={t('common.instrucciones')}
                       value={editInstructions}
                       onChangeText={setEditInstructions}
                       multiline
                       numberOfLines={3}
                     />
                     <Field
-                      label="URL de la imagen"
+                      label={t('common.imagenUrl')}
                       value={editImageUrl}
                       onChangeText={setEditImageUrl}
                       autoCapitalize="none"
                       autoComplete="off"
-                      placeholder="https://.../foto.png"
+                      placeholder={t('common.placeholderUrl')}
                     />
                     <Button
                       variant="outline"
-                      label="Guardar"
+                      label={t('common.guardar')}
                       icon="content-save-outline"
                       disabled={busy}
                       onPress={() => handleSaveEdit(ex.id)}

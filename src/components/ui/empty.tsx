@@ -12,13 +12,19 @@ type Props = {
   icon?: ComponentProps<typeof MaterialCommunityIcons>['name'];
 };
 
+/**
+ * Estado vacío: "todavía no hay nada acá". No es un progreso ni un error, así
+ * que usa la tarjeta neutra (`surface`) con el chip de ícono teñido de
+ * `primary`: el mismo tratamiento que las estadísticas y los badges de la
+ * pantalla de inicio. El verde queda para lo que sí es avance.
+ */
 export function EmptyState({ title, subtitle, icon = 'dumbbell' }: Props) {
   const theme = useTheme();
 
   return (
-    <View style={[styles.wrapper, { backgroundColor: theme.brandSurface, borderColor: theme.border }]}>
-      <View style={[styles.icon, { backgroundColor: `${theme.teal}1F`, borderColor: `${theme.teal}40` }]}>
-        <MaterialCommunityIcons name={icon} size={28} color={theme.teal} />
+    <View style={[styles.wrapper, { backgroundColor: theme.surface, borderColor: theme.border }]}>
+      <View style={[styles.icon, { backgroundColor: theme.primarySubtle, borderColor: theme.primaryBorder }]}>
+        <MaterialCommunityIcons name={icon} size={28} color={theme.primaryBright} />
       </View>
       <ThemedText type="subtitle" style={styles.center}>
         {title}

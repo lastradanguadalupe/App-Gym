@@ -3,6 +3,7 @@ import { useLocalSearchParams } from 'expo-router';
 import { useCallback, useEffect, useState } from 'react';
 import { ActivityIndicator, Alert, Pressable, StyleSheet, View } from 'react-native';
 
+import { ExerciseParamsSheet, type ExerciseParamsValue } from '@/components/admin/exercise-params-sheet';
 import { ThemedText } from '@/components/themed-text';
 import { Button } from '@/components/ui/button';
 import { Card, StatCard } from '@/components/ui/card';
@@ -32,17 +33,21 @@ import {
   type RoutineFull,
 } from '@/lib/db';
 import {
-  WEEKDAYS_SHORT,
   computeEdad,
   experienciaLabel,
   formatDateTime,
   formatMinutes,
   regionLabel,
   weekdayLabel,
+  weekdayLabelsShort,
 } from '@/lib/format';
 import { friendlyError } from '@/lib/errors';
+import { paramSegments } from '@/lib/routine-params';
 import { Spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
+import { useI18n } from '@/context/i18n';
+import { t } from '@/i18n';
+import type { Idioma } from '@/types';
 import type {
   ClientDetails,
   Exercise,
@@ -55,19 +60,55 @@ import type {
   WorkoutSession,
 } from '@/types';
 
-const REGIONS: { value: Region; label: string }[] = [
-  { value: 'superior', label: 'Tren superior' },
-  { value: 'inferior', label: 'Tren inferior' },
-  { value: 'core', label: 'Core' },
-  { value: 'full', label: 'Cuerpo completo' },
-];
+/** Las etiquetas se resuelven por idioma, no como constante de módulo. */
+const REGION_VALUES: Region[] = ['superior', 'inferior', 'core', 'full'];
+function regions(locale: Idioma): { value: Region; label: string }[] {
+  return REGION_VALUES.map((value) => ({ value, label: regionLabel(locale, value) }));
+}
+
+/** Un ejercicio ya elegido para una rutina nueva, con sus parámetros. */
+type DraftExercise = ExerciseParamsValue & { exerciseId: number };
 
 type DraftBlock = {
   key: number;
   name: string;
   region: Region;
-  exerciseIds: number[];
+  exercises: DraftExercise[];
 };
+
+/**
+ * A qué apunta el panel de parámetros.
+ *
+ *  - `draft`: ejercicio de una rutina aún sin guardar.
+ *  - `block`: ejercicio nuevo que se agrega a un bloque ya existente.
+ *  - `rbe`:   ejercicio ya guardado que se está editando.
+ */
+type ParamTarget =
+  | { kind: 'draft'; blockKey: number; exerciseId: number; name: string }
+  | { kind: 'block'; blockId: number; exerciseId: number; name: string }
+  | { kind: 'rbe'; rbe: RoutineBlockExercise; name: string };
+
+/** Los cuatro parámetros con rótulo, en una línea. "—" cuando no está definido. */
+function ParamLine({
+  rbe,
+}: {
+  rbe: Pick<RoutineBlockExercise, 'sets' | 'reps' | 'rest_seconds' | 'peso_kg'>;
+}) {
+  const { locale } = useI18n();
+  const segments = paramSegments(locale, rbe);
+  return (
+    <ThemedText type="small" themeColor="textSecondary">
+      {segments.map((segment, index) => (
+        <ThemedText
+          key={segment.label}
+          type="small"
+          themeColor={segment.defined ? 'textSecondary' : 'textMuted'}>
+          {`${index ? ' · ' : ''}${segment.label}: ${segment.value}`}
+        </ThemedText>
+      ))}
+    </ThemedText>
+  );
+}
 
 function Meta({ label, value, wide }: { label: string; value: string; wide?: boolean }) {
   return (
@@ -80,10 +121,20 @@ function Meta({ label, value, wide }: { label: string; value: string; wide?: boo
   );
 }
 
+function toParamsValue(rbe: RoutineBlockExercise): ExerciseParamsValue {
+  return {
+    sets: rbe.sets,
+    reps: rbe.reps,
+    restSeconds: rbe.rest_seconds,
+    pesoKg: rbe.peso_kg,
+  };
+}
+
 export default function AdminAlumnoScreen() {
   const params = useLocalSearchParams<{ id: string }>();
   const theme = useTheme();
   const { profile: me } = useSession();
+  const { locale } = useI18n();
   const userId = params.id ?? '';
 
   const [client, setClient] = useState<Profile | null>(null);
@@ -106,10 +157,11 @@ export default function AdminAlumnoScreen() {
   const [draftOk, setDraftOk] = useState<string | null>(null);
   const [pickerBlock, setPickerBlock] = useState<number | null>(null);
   const [pickerMuscle, setPickerMuscle] = useState<number | null>(null);
-  const [editingRbe, setEditingRbe] = useState<number | null>(null);
-  const [editSets, setEditSets] = useState('3');
-  const [editReps, setEditReps] = useState('10-12');
-  const [editRest, setEditRest] = useState('60');
+
+  // Panel de parámetros (series / reps / descanso / peso)
+  const [paramTarget, setParamTarget] = useState<ParamTarget | null>(null);
+  const [paramInitial, setParamInitial] = useState<ExerciseParamsValue | null>(null);
+  const [paramSaving, setParamSaving] = useState(false);
 
   const load = useCallback(async () => {
     if (!userId) return;
@@ -141,6 +193,76 @@ export default function AdminAlumnoScreen() {
     load();
   }, [load]);
 
+  // ---------- Panel de parámetros ----------
+
+  function openDraftExercise(
+    blockKey: number,
+    exerciseId: number,
+    name: string,
+    added: DraftExercise | undefined
+  ) {
+    setParamInitial(added ? { ...added } : null);
+    setParamTarget({ kind: 'draft', blockKey, exerciseId, name });
+  }
+
+  function openAddToBlock(blockId: number, ex: Exercise) {
+    setParamInitial(null);
+    setParamTarget({ kind: 'block', blockId, exerciseId: ex.id, name: ex.name });
+  }
+
+  function openEditRbe(rbe: RoutineBlockExercise) {
+    setParamInitial(toParamsValue(rbe));
+    setParamTarget({ kind: 'rbe', rbe, name: rbe.exercises?.name ?? t('admin.ejercicio') });
+  }
+
+  async function handleSaveParams(value: ExerciseParamsValue) {
+    if (!paramTarget) return;
+
+    if (paramTarget.kind === 'draft') {
+      const target = paramTarget;
+      setDraftBlocks((blocks) =>
+        blocks.map((b) => {
+          if (b.key !== target.blockKey) return b;
+          const next = b.exercises.filter((e) => e.exerciseId !== target.exerciseId);
+          next.push({ exerciseId: target.exerciseId, ...value });
+          return { ...b, exercises: next };
+        })
+      );
+      setParamTarget(null);
+      return;
+    }
+
+    setParamSaving(true);
+    try {
+      if (paramTarget.kind === 'block') {
+        const block = routine?.routine_blocks.find((b) => b.id === paramTarget.blockId);
+        await addBlockExercise({
+          block_id: paramTarget.blockId,
+          exercise_id: paramTarget.exerciseId,
+          sets: value.sets,
+          reps: value.reps,
+          rest_seconds: value.restSeconds,
+          peso_kg: value.pesoKg,
+          position: block?.routine_block_exercises.length ?? 0,
+        });
+      } else {
+        await updateBlockExercise(paramTarget.rbe.id, {
+          sets: value.sets,
+          reps: value.reps,
+          rest_seconds: value.restSeconds,
+          peso_kg: value.pesoKg,
+        });
+      }
+      setParamTarget(null);
+      await load();
+    } catch (e) {
+      console.warn(e);
+      Alert.alert(t('common.error'), friendlyError(e, 'perfil.noSePudieronGuardar'));
+    } finally {
+      setParamSaving(false);
+    }
+  }
+
   // ---------- Plan semanal ----------
 
   function scheduledWeekdayOf(blockId: number): number | null {
@@ -167,8 +289,8 @@ export default function AdminAlumnoScreen() {
     } catch (e) {
       console.warn(e);
       Alert.alert(
-        'No se pudo guardar',
-        friendlyError(e, 'Revisa la asignacion del dia e intenta de nuevo.')
+        t('admin.noSePudoGuardar'),
+        friendlyError(e, 'admin.errorAsignacionDia')
       );
     } finally {
       setBusy(false);
@@ -181,7 +303,7 @@ export default function AdminAlumnoScreen() {
     setDraftError(null);
     setDraftBlocks((blocks) => [
       ...blocks,
-      { key: Date.now() + Math.random(), name: '', region: 'full', exerciseIds: [] },
+      { key: Date.now() + Math.random(), name: '', region: 'full', exercises: [] },
     ]);
   }
 
@@ -193,16 +315,11 @@ export default function AdminAlumnoScreen() {
     setDraftBlocks((blocks) => blocks.map((b) => (b.key === key ? { ...b, ...patch } : b)));
   }
 
-  function toggleDraftExercise(key: number, id: number) {
+  function removeDraftExercise(blockKey: number, exerciseId: number) {
     setDraftBlocks((blocks) =>
       blocks.map((b) =>
-        b.key === key
-          ? {
-              ...b,
-              exerciseIds: b.exerciseIds.includes(id)
-                ? b.exerciseIds.filter((x) => x !== id)
-                : [...b.exerciseIds, id],
-            }
+        b.key === blockKey
+          ? { ...b, exercises: b.exercises.filter((e) => e.exerciseId !== exerciseId) }
           : b
       )
     );
@@ -215,15 +332,19 @@ export default function AdminAlumnoScreen() {
     setDraftError(null);
     setDraftOk(null);
     if (!title) {
-      setDraftError('Poné un nombre para la rutina.');
+      setDraftError(t('admin.rutinaSinNombre'));
       return;
     }
     if (!blocks.length) {
-      setDraftError('Agregá al menos un bloque con su nombre y algunos ejercicios.');
+      setDraftError(t('admin.rutinaSinBloques'));
+      return;
+    }
+    if (blocks.some((b) => b.exercises.some((e) => e.sets == null || !e.reps))) {
+      setDraftError(t('admin.faltanSeriesReps'));
       return;
     }
     if (!client || client.profe_id !== me.id) {
-      setDraftError('Este alumno no está asignado a tu cuenta. Entrá al panel, buscalo y tocá "Agregar".');
+      setDraftError(t('admin.alumnoNoAsignado'));
       return;
     }
     setBusy(true);
@@ -235,17 +356,27 @@ export default function AdminAlumnoScreen() {
         blocks: blocks.map((b) => ({
           name: b.name,
           region: b.region,
-          exerciseIds: b.exerciseIds,
+          exercises: b.exercises.map((e) => ({
+            exerciseId: e.exerciseId,
+            sets: e.sets,
+            reps: e.reps,
+            restSeconds: e.restSeconds,
+            pesoKg: e.pesoKg,
+          })),
         })),
       });
       setNewTitle('');
       setNewDescription('');
       setDraftBlocks([]);
-      setDraftOk(`Rutina creada con ${blocks.length} bloque${blocks.length === 1 ? '' : 's'}.`);
+      setDraftOk(
+        t(blocks.length === 1 ? 'admin.rutinaCreadaUna' : 'admin.rutinaCreadaVarias', {
+          count: blocks.length,
+        })
+      );
       await load();
     } catch (e) {
       console.warn(e);
-      setDraftError(friendlyError(e, 'No se pudo crear la rutina.'));
+      setDraftError(friendlyError(e, 'admin.errorCrearRutina'));
     } finally {
       setBusy(false);
     }
@@ -269,10 +400,10 @@ export default function AdminAlumnoScreen() {
   }
 
   async function handleDeleteBlock(blockId: number) {
-    Alert.alert('Eliminar bloque', '¿Seguro que querés eliminar este bloque?', [
-      { text: 'Cancelar', style: 'cancel' },
+    Alert.alert(t('common.eliminarBloque'), t('common.confirmarEliminarBloque'), [
+      { text: t('common.cancelar'), style: 'cancel' },
       {
-        text: 'Eliminar',
+        text: t('common.eliminar'),
         style: 'destructive',
         onPress: async () => {
           try {
@@ -286,24 +417,6 @@ export default function AdminAlumnoScreen() {
     ]);
   }
 
-  async function handleAddExercise(blockId: number, exerciseId: number) {
-    setBusy(true);
-    try {
-      const block = routine?.routine_blocks.find((b) => b.id === blockId);
-      await addBlockExercise({
-        block_id: blockId,
-        exercise_id: exerciseId,
-        sets: 3,
-        reps: '10-12',
-        rest_seconds: 60,
-        position: block?.routine_block_exercises.length ?? 0,
-      });
-      await load();
-    } finally {
-      setBusy(false);
-    }
-  }
-
   async function handleDeleteExercise(rbeId: number) {
     try {
       await deleteBlockExercise(rbeId);
@@ -313,43 +426,12 @@ export default function AdminAlumnoScreen() {
     }
   }
 
-  function openEditRbe(rbe: RoutineBlockExercise) {
-    setEditSets(String(rbe.sets));
-    setEditReps(rbe.reps);
-    setEditRest(String(rbe.rest_seconds));
-    setEditingRbe(rbe.id);
-  }
-
-  async function handleSaveRbe(rbe: RoutineBlockExercise) {
-    const sets = Number(editSets);
-    const rest = Number(editRest);
-    if (!Number.isFinite(sets) || sets < 1 || !Number.isFinite(rest) || rest < 0) {
-      Alert.alert('Revisá los valores', 'Series y descanso deben ser números válidos.');
-      return;
-    }
-    setBusy(true);
-    try {
-      await updateBlockExercise(rbe.id, {
-        sets,
-        reps: editReps.trim() || '10-12',
-        rest_seconds: rest,
-      });
-      setEditingRbe(null);
-      await load();
-    } catch (e) {
-      console.warn(e);
-      Alert.alert('Error', 'No se pudieron guardar los cambios.');
-    } finally {
-      setBusy(false);
-    }
-  }
-
   async function handleDeleteRoutine() {
     if (!routine) return;
-    Alert.alert('Eliminar rutina', '¿Seguro que querés eliminar toda la rutina del alumno?', [
-      { text: 'Cancelar', style: 'cancel' },
+    Alert.alert(t('common.eliminarRutina'), t('common.confirmarEliminarRutina'), [
+      { text: t('common.cancelar'), style: 'cancel' },
       {
-        text: 'Eliminar',
+        text: t('common.eliminar'),
         style: 'destructive',
         onPress: async () => {
           try {
@@ -377,8 +459,8 @@ export default function AdminAlumnoScreen() {
       <Screen>
         <EmptyState
           icon="account-search-outline"
-          title="Alumno no encontrado"
-          subtitle="Volvé al listado y elegí un alumno."
+          title={t('admin.alumnoNoEncontrado')}
+          subtitle={t('admin.alumnoNoEncontradoSubtitulo')}
         />
       </Screen>
     );
@@ -391,7 +473,7 @@ export default function AdminAlumnoScreen() {
       {/* Datos del alumno */}
       <View style={styles.header}>
         <ThemedText type="eyebrow" themeColor="text">
-          Ficha del alumno
+          {t('admin.fichaAlumno')}
         </ThemedText>
         <ThemedText type="display">{client.name ?? client.email}</ThemedText>
         <ThemedText type="small" themeColor="textSecondary">
@@ -401,82 +483,84 @@ export default function AdminAlumnoScreen() {
 
       <Card>
         <View style={styles.metaGrid}>
-          <Meta label="Edad" value={edad != null ? `${edad} años` : '—'} />
-          <Meta label="Altura" value={details?.altura_cm != null ? `${details.altura_cm} cm` : '—'} />
-          <Meta label="Peso" value={details?.peso_kg != null ? `${details.peso_kg} kg` : '—'} />
-          <Meta label="Nivel" value={experienciaLabel(details?.experiencia ?? null)} />
+          <Meta
+            label={t('admin.edad')}
+            value={edad != null ? t('admin.edadAnios', { edad }) : '—'}
+          />
+          <Meta label={t('perfil.altura')} value={details?.altura_cm != null ? `${details.altura_cm} cm` : '—'} />
+          <Meta label={t('perfil.peso')} value={details?.peso_kg != null ? `${details.peso_kg} kg` : '—'} />
+          <Meta label={t('admin.nivel')} value={experienciaLabel(locale, details?.experiencia ?? null)} />
         </View>
         <View style={styles.metaGrid}>
-          <Meta label="Objetivo" value={details?.objetivo ?? '—'} wide />
+          <Meta label={t('perfil.objetivo')} value={details?.objetivo ?? '—'} wide />
         </View>
         {details?.enfermedades?.length ? (
-          <Meta label="Enfermedades" value={details.enfermedades.join(', ')} wide />
+          <Meta label={t('perfil.enfermedades')} value={details.enfermedades.join(', ')} wide />
         ) : null}
         {details?.lesiones?.length ? (
-          <Meta label="Lesiones" value={details.lesiones.join(', ')} wide />
+          <Meta label={t('perfil.lesiones')} value={details.lesiones.join(', ')} wide />
         ) : null}
       </Card>
 
       {/* Avance */}
       <Card>
         <ThemedText type="eyebrow" themeColor="textSecondary">
-          Avance
+          {t('admin.avance')}
         </ThemedText>
         <View style={styles.statsRow}>
           <View style={styles.flex}>
             <StatCard
               icon="calendar-check-outline"
               value={String(sessions.length)}
-              label="Entrenamientos"
+              label={t('inicio.entrenamientos')}
             />
           </View>
           <View style={styles.flex}>
             <StatCard
               icon="timer-outline"
-              value={formatMinutes(sessions.reduce((acc, s) => acc + (s.duration_minutes ?? 0), 0))}
-              label="Tiempo total"
+              value={formatMinutes(locale, sessions.reduce((acc, s) => acc + (s.duration_minutes ?? 0), 0))}
+              label={t('inicio.tiempoTotal')}
             />
           </View>
         </View>
         {sessions.slice(0, 5).map((s) => (
           <ThemedText key={s.id} type="small" themeColor="textSecondary">
-            {formatDateTime(s.completed_on)}
-            {s.duration_minutes != null ? ` · ${formatMinutes(s.duration_minutes)}` : ''}
+            {formatDateTime(s.completed_on, locale)}
+            {s.duration_minutes != null ? ` · ${formatMinutes(locale, s.duration_minutes)}` : ''}
           </ThemedText>
         ))}
       </Card>
 
       {/* Rutina */}
       <ThemedText type="eyebrow" themeColor="textSecondary">
-        Rutina
+        {t('nav.rutina')}
       </ThemedText>
 
       {!routine ? (
         <Card>
           <ThemedText type="eyebrow" themeColor="text">
-            Nueva rutina
+            {t('admin.nuevaRutina')}
           </ThemedText>
           <ThemedText type="small" themeColor="textSecondary">
-            Armá la primera versión con bloques y ejercicios del catálogo. Después podés seguir
-            editándola cuando quieras.
+            {t('admin.nuevaRutinaSubtitulo')}
           </ThemedText>
 
           <Field
-            label="Título"
+            label={t('common.titulo')}
             value={newTitle}
             onChangeText={setNewTitle}
-            placeholder="Ej: Rutina de hipertrofia"
+            placeholder={t('common.tituloPlaceholder')}
           />
           <Field
-            label="Descripción (opcional)"
+            label={t('common.descripcionOpcional')}
             value={newDescription}
             onChangeText={setNewDescription}
-            placeholder="Un par de líneas de contexto..."
+            placeholder={t('common.descripcionPlaceholder')}
           />
 
           {draftBlocks.length ? (
             <ThemedText type="smallBold" themeColor="textSecondary">
-              Bloques ({draftBlocks.length})
+              {t('admin.bloques', { count: draftBlocks.length })}
             </ThemedText>
           ) : null}
 
@@ -484,28 +568,28 @@ export default function AdminAlumnoScreen() {
             <View key={block.key} style={styles.draftBlock}>
               <View style={styles.headerRow}>
                 <ThemedText type="smallBold" themeColor="text">
-                  Bloque {index + 1}
+                  {t('common.bloqueNum', { num: index + 1 })}
                 </ThemedText>
                 <IconAction
                   icon="trash-can-outline"
-                  label="Quitar bloque"
+                  label={t('common.quitarBloque')}
                   color={theme.danger}
                   onPress={() => removeDraftBlock(block.key)}
                 />
               </View>
 
               <Field
-                label="Nombre del bloque"
+                label={t('common.nombreBloque')}
                 value={block.name}
-                onChangeText={(t) => patchDraftBlock(block.key, { name: t })}
-                placeholder="Ej: Tren superior"
+                onChangeText={(value) => patchDraftBlock(block.key, { name: value })}
+                placeholder={t('common.nombreBloquePlaceholder')}
               />
 
               <ThemedText type="smallBold" themeColor="textSecondary">
-                Zona del cuerpo
+                {t('admin.zonaCuerpo')}
               </ThemedText>
               <View style={styles.chipsRow}>
-                {REGIONS.map((r) => (
+                {regions(locale).map((r) => (
                   <Chip
                     key={r.value}
                     label={r.label}
@@ -515,15 +599,50 @@ export default function AdminAlumnoScreen() {
                 ))}
               </View>
 
+              {block.exercises.length ? (
+                <View style={styles.selectedList}>
+                  {block.exercises.map((draft) => {
+                    const ex = exercises.find((e) => e.id === draft.exerciseId);
+                    return (
+                      <View key={draft.exerciseId} style={styles.selectedRow}>
+                        <View style={styles.flex}>
+                          <ThemedText type="small">{ex?.name ?? t('admin.ejercicio')}</ThemedText>
+                          <ParamLine rbe={draftToRbe(draft)} />
+                        </View>
+                        <IconAction
+                          icon="pencil-outline"
+                          label={t('common.editar')}
+                          color={theme.brandBright}
+                          onPress={() =>
+                            openDraftExercise(
+                              block.key,
+                              draft.exerciseId,
+                              ex?.name ?? t('admin.ejercicio'),
+                              draft
+                            )
+                          }
+                        />
+                        <IconAction
+                          icon="trash-can-outline"
+                          label={t('common.quitar')}
+                          color={theme.danger}
+                          onPress={() => removeDraftExercise(block.key, draft.exerciseId)}
+                        />
+                      </View>
+                    );
+                  })}
+                </View>
+              ) : null}
+
               <ThemedText type="smallBold" themeColor="text">
-                Ejercicios ({block.exerciseIds.length})
+                {t('admin.ejercicios', { count: block.exercises.length })}
               </ThemedText>
 
               {muscleGroups.map((mg) => {
                 const groupExercises = exercises.filter((ex) => ex.muscle_group_id === mg.id);
                 if (!groupExercises.length) return null;
-                const anySelected = block.exerciseIds.some((id) =>
-                  groupExercises.some((ex) => ex.id === id)
+                const anySelected = block.exercises.some((de) =>
+                  groupExercises.some((ex) => ex.id === de.exerciseId)
                 );
                 return (
                   <View key={mg.id} style={styles.exGroup}>
@@ -533,16 +652,16 @@ export default function AdminAlumnoScreen() {
                       {mg.name}
                     </ThemedText>
                     {groupExercises.map((ex) => {
-                      const selected = block.exerciseIds.includes(ex.id);
+                      const added = block.exercises.find((de) => de.exerciseId === ex.id);
                       return (
                         <Pressable
                           key={ex.id}
-                          onPress={() => toggleDraftExercise(block.key, ex.id)}
+                          onPress={() => openDraftExercise(block.key, ex.id, ex.name, added)}
                           style={({ pressed }) => [styles.exRow, pressed && styles.pressed]}>
                           <MaterialCommunityIcons
-                            name={selected ? 'checkbox-marked-circle' : 'checkbox-blank-circle-outline'}
+                            name={added ? 'checkbox-marked-circle' : 'checkbox-blank-circle-outline'}
                             size={22}
-                            color={selected ? theme.teal : theme.textSecondary}
+                            color={added ? theme.teal : theme.textSecondary}
                           />
                           <ThemedText type="small" style={styles.flex}>
                             {ex.name}
@@ -558,7 +677,7 @@ export default function AdminAlumnoScreen() {
 
           <Button
             variant="outline"
-            label="Agregar bloque"
+            label={t('admin.agregarBloque')}
             icon="plus-box-outline"
             onPress={addDraftBlock}
           />
@@ -567,7 +686,7 @@ export default function AdminAlumnoScreen() {
           {draftOk ? <ThemedText themeColor="success">{draftOk}</ThemedText> : null}
 
           <Button
-            label="Crear rutina"
+            label={t('admin.crearRutina')}
             icon="check"
             onPress={handleCreateRoutine}
             loading={busy}
@@ -586,14 +705,14 @@ export default function AdminAlumnoScreen() {
             </View>
             <IconAction
               icon="trash-can-outline"
-              label="Quitar rutina"
+              label={t('common.eliminarRutina')}
               color={theme.danger}
               onPress={handleDeleteRoutine}
             />
           </View>
 
           <ThemedText type="smallBold" themeColor="textSecondary">
-            Plan semanal
+            {t('admin.planSemanal')}
           </ThemedText>
           <View style={styles.weekList}>
             {Array.from({ length: 7 }, (_, weekday) => {
@@ -604,10 +723,10 @@ export default function AdminAlumnoScreen() {
                     type="small"
                     themeColor={block ? 'text' : 'textSecondary'}
                     style={styles.weekDay}>
-                    {weekdayLabel(weekday)}
+                    {weekdayLabel(locale, weekday)}
                   </ThemedText>
                   <ThemedText type="small" themeColor={block ? 'brandBright' : 'textSecondary'}>
-                    {block ? block.name : 'Libre / Descanso'}
+                    {block ? block.name : t('common.libreDescanso')}
                   </ThemedText>
                 </View>
               );
@@ -615,7 +734,7 @@ export default function AdminAlumnoScreen() {
           </View>
 
           <ThemedText type="smallBold" themeColor="textSecondary">
-            Bloques (cada uno se programa en un día de la semana)
+            {t('admin.bloquesProgramados')}
           </ThemedText>
 
           {routine.routine_blocks.map((block, index) => (
@@ -623,13 +742,16 @@ export default function AdminAlumnoScreen() {
               <View style={styles.headerRow}>
                 <View style={styles.flex}>
                   <ThemedText type="smallBold" themeColor="text">
-                    Bloque {index + 1} · {regionLabel(block.region)}
+                    {t('common.bloqueRegion', {
+                      num: index + 1,
+                      region: regionLabel(locale, block.region),
+                    })}
                   </ThemedText>
                   <ThemedText type="default">{block.name}</ThemedText>
                 </View>
                 <IconAction
                   icon="trash-can-outline"
-                  label="Eliminar bloque"
+                  label={t('common.eliminarBloque')}
                   color={theme.danger}
                   onPress={() => handleDeleteBlock(block.id)}
                 />
@@ -637,10 +759,10 @@ export default function AdminAlumnoScreen() {
 
               <View style={styles.group}>
                 <ThemedText type="smallBold" themeColor="textSecondary">
-                  Día de la semana
+                  {t('common.diaSemana')}
                 </ThemedText>
                 <View style={styles.chipsRow}>
-                  {WEEKDAYS_SHORT.map((label, weekday) => (
+                  {weekdayLabelsShort(locale).map((label, weekday) => (
                     <Chip
                       key={weekday}
                       label={label}
@@ -652,80 +774,45 @@ export default function AdminAlumnoScreen() {
                 </View>
                 <ThemedText type="small" themeColor="textSecondary">
                   {scheduledWeekdayOf(block.id) == null
-                    ? 'Sin día asignado: el alumno lo ve como libre.'
-                    : 'Tocá el mismo día para dejarlo libre.'}
+                    ? t('admin.sinDiaAsignado')
+                    : t('admin.tocaMismoDia')}
                 </ThemedText>
               </View>
 
               {block.routine_block_exercises.map((rbe) => (
-                <View key={rbe.id}>
-                  <View style={styles.exerciseRow}>
-                    <View style={styles.flex}>
-                      <ThemedText type="default">{rbe.exercises?.name}</ThemedText>
-                      <ThemedText type="small" themeColor="textSecondary">
-                        {rbe.sets} × {rbe.reps} · {rbe.rest_seconds}s ·{' '}
-                        {rbe.exercises?.muscle_groups?.name}
-                      </ThemedText>
-                    </View>
-                    {editingRbe === rbe.id ? (
-                      <IconAction
-                        icon="close"
-                        label="Cerrar"
-                        color={theme.textSecondary}
-                        onPress={() => setEditingRbe(null)}
-                      />
-                    ) : (
-                      <>
-                        <IconAction
-                          icon="pencil-outline"
-                          label="Editar"
-                          color={theme.brandBright}
-                          onPress={() => openEditRbe(rbe)}
-                        />
-                        <IconAction
-                          icon="trash-can-outline"
-                          label="Quitar"
-                          color={theme.danger}
-                          onPress={() =>
-                            Alert.alert(rbe.exercises?.name ?? 'Ejercicio', '¿Quitar este ejercicio?', [
-                              { text: 'Cancelar', style: 'cancel' },
-                              { text: 'Quitar', style: 'destructive', onPress: () => handleDeleteExercise(rbe.id) },
-                            ])
-                          }
-                        />
-                      </>
-                    )}
+                <View key={rbe.id} style={styles.exerciseRow}>
+                  <View style={styles.flex}>
+                    <ThemedText type="default">{rbe.exercises?.name}</ThemedText>
+                    <ParamLine rbe={rbe} />
                   </View>
-
-                  {editingRbe === rbe.id ? (
-                    <View style={styles.editBox}>
-                      <View style={styles.rowThree}>
-                        <View style={styles.flex}>
-                          <Field label="Series" value={editSets} onChangeText={setEditSets} keyboardType="number-pad" />
-                        </View>
-                        <View style={styles.flex}>
-                          <Field label="Reps" value={editReps} onChangeText={setEditReps} placeholder="10-12" />
-                        </View>
-                        <View style={styles.flex}>
-                          <Field label="Descanso (s)" value={editRest} onChangeText={setEditRest} keyboardType="number-pad" />
-                        </View>
-                      </View>
-                      <Button
-                        variant="outline"
-                        label="Guardar"
-                        icon="content-save-outline"
-                        disabled={busy}
-                        onPress={() => handleSaveRbe(rbe)}
-                      />
-                    </View>
-                  ) : null}
+                  <IconAction
+                    icon="pencil-outline"
+                    label={t('common.editar')}
+                    color={theme.brandBright}
+                    onPress={() => openEditRbe(rbe)}
+                  />
+                  <IconAction
+                    icon="trash-can-outline"
+                    label={t('common.quitar')}
+                    color={theme.danger}
+                    onPress={() =>
+                      Alert.alert(rbe.exercises?.name ?? t('admin.ejercicio'), t('common.confirmarQuitarEjercicio'), [
+                        { text: t('common.cancelar'), style: 'cancel' },
+                        {
+                          text: t('common.quitar'),
+                          style: 'destructive',
+                          onPress: () => handleDeleteExercise(rbe.id),
+                        },
+                      ])
+                    }
+                  />
                 </View>
               ))}
 
               {pickerBlock === block.id ? (
                 <View style={styles.picker}>
                   <ThemedText type="smallBold" themeColor="textSecondary">
-                    Elegí un músculo y agregá ejercicios
+                    {t('admin.elegiMusculo')}
                   </ThemedText>
                   <View style={styles.chipsRow}>
                     {muscleGroups.map((mg) => (
@@ -749,23 +836,22 @@ export default function AdminAlumnoScreen() {
                         </View>
                         <Button
                           variant="outline"
-                          label="Agregar"
+                          label={t('common.agregar')}
                           disabled={busy}
-                          onPress={() => handleAddExercise(block.id, ex.id)}
+                          onPress={() => openAddToBlock(block.id, ex)}
                         />
                       </View>
                     ))}
                   {!exercises.length ? (
                     <ThemedText type="small" themeColor="textSecondary">
-                      Todavía no hay ejercicios en el catálogo. Cargalos desde “Catálogo de
-                      ejercicios”.
+                      {t('admin.catalogoVacio')}
                     </ThemedText>
                   ) : null}
                 </View>
               ) : (
                 <Button
                   variant="outline"
-                  label="Agregar ejercicio"
+                  label={t('admin.agregarEjercicio')}
                   onPress={() => {
                     setPickerBlock(block.id);
                     setPickerMuscle(null);
@@ -776,11 +862,16 @@ export default function AdminAlumnoScreen() {
           ))}
 
           <ThemedText type="smallBold" themeColor="textSecondary">
-            Agregar bloque
+            {t('admin.agregarBloque')}
           </ThemedText>
-          <Field label="Nombre del bloque" value={newBlockName} onChangeText={setNewBlockName} placeholder="Ej: Tren superior" />
+          <Field
+            label={t('common.nombreBloque')}
+            value={newBlockName}
+            onChangeText={setNewBlockName}
+            placeholder={t('common.nombreBloquePlaceholder')}
+          />
           <View style={styles.chipsRow}>
-            {REGIONS.map((r) => (
+            {regions(locale).map((r) => (
               <Chip
                 key={r.value}
                 label={r.label}
@@ -789,11 +880,35 @@ export default function AdminAlumnoScreen() {
               />
             ))}
           </View>
-          <Button label="Agregar bloque" onPress={handleAddBlock} loading={busy} />
+          <Button label={t('admin.agregarBloque')} onPress={handleAddBlock} loading={busy} />
         </Card>
       )}
+
+      {paramTarget ? (
+        <ExerciseParamsSheet
+          title={
+            paramTarget.kind === 'rbe'
+              ? `${t('admin.editarParametros')} · ${paramTarget.name}`
+              : `${t('admin.configurarEjercicio')} · ${paramTarget.name}`
+          }
+          initial={paramInitial}
+          saving={paramSaving}
+          onCancel={() => setParamTarget(null)}
+          onSave={handleSaveParams}
+        />
+      ) : null}
     </Screen>
   );
+}
+
+/** Un borrador se puede pintar con el mismo formateador que una fila real. */
+function draftToRbe(draft: DraftExercise): Pick<RoutineBlockExercise, 'sets' | 'reps' | 'rest_seconds' | 'peso_kg'> {
+  return {
+    sets: draft.sets,
+    reps: draft.reps,
+    rest_seconds: draft.restSeconds,
+    peso_kg: draft.pesoKg,
+  };
 }
 
 const styles = StyleSheet.create({
@@ -824,8 +939,6 @@ const styles = StyleSheet.create({
   weekDay: { fontWeight: '700' },
   picker: { gap: Spacing.two, paddingTop: Spacing.two },
   addRow: { flexDirection: 'row', alignItems: 'center', gap: Spacing.two },
-  editBox: { gap: Spacing.two, paddingTop: Spacing.two },
-  rowThree: { flexDirection: 'row', gap: Spacing.two },
   pressed: { opacity: 0.7 },
   draftBlock: {
     gap: Spacing.md,
@@ -839,5 +952,14 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: Spacing.two,
     paddingVertical: Spacing.one,
+  },
+  selectedList: {
+    gap: Spacing.two,
+    paddingVertical: Spacing.two,
+  },
+  selectedRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.two,
   },
 });

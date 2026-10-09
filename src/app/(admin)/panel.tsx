@@ -21,6 +21,8 @@ import {
 import { formatMinutes } from '@/lib/format';
 import { Colors, Spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
+import { useI18n } from '@/context/i18n';
+import { t } from '@/i18n';
 import type { Profile } from '@/types';
 
 const PAGE_SIZE = 20;
@@ -29,6 +31,7 @@ export default function AdminHomeScreen() {
   const router = useRouter();
   const theme = useTheme();
   const { profile, signOut } = useSession();
+  const { locale } = useI18n();
 
   const [alumnos, setAlumnos] = useState<Profile[]>([]);
   const [stats, setStats] = useState<Record<string, AlumnoStats>>({});
@@ -77,7 +80,7 @@ export default function AdminHomeScreen() {
     setMessage(null);
     setError(null);
     if (!query.trim()) {
-      setError('Ingresá el nombre (o email) del alumno.');
+      setError(t('admin.buscarSinNombre'));
       return;
     }
     setSearching(true);
@@ -85,11 +88,11 @@ export default function AdminHomeScreen() {
       const matches = await searchClients(query.trim());
       setResults(matches);
       if (!matches.length) {
-        setError('No encontré alumnos con ese nombre o email. Deben registrarse primero desde la app.');
+        setError(t('admin.buscarSinResultados'));
       }
     } catch (e) {
       console.warn(e);
-      setError('No se pudo buscar. Probá de nuevo.');
+      setError(t('admin.buscarError'));
     } finally {
       setSearching(false);
     }
@@ -101,13 +104,13 @@ export default function AdminHomeScreen() {
     setBusy(true);
     try {
       await assignProfe(target.id);
-      setMessage(`${target.name ?? target.email} ahora es tu alumno.`);
+      setMessage(t('admin.alumnoAsignado', { nombre: target.name ?? target.email }));
       setQuery('');
       setResults([]);
       await load();
     } catch (e) {
       console.warn(e);
-      setError('No se pudo asignar. Puede que ya tenga otro profe asignado.');
+      setError(t('admin.asignarError'));
     } finally {
       setBusy(false);
     }
@@ -125,32 +128,32 @@ export default function AdminHomeScreen() {
     <Screen>
       <View>
         <ThemedText type="small" themeColor="text">
-          Panel del profe
+          {t('admin.panelProfe')}
         </ThemedText>
         <ThemedText type="display">
-          Hola{profile?.name?.split(' ')[0] ? `, ${profile.name.split(' ')[0]}` : ''}
+          {t('inicio.holaNombre', { nombre: profile?.name?.split(' ')[0] ?? '' })}
         </ThemedText>
         <ThemedText type="small" themeColor="textSecondary">
-          Gestioná tus alumnos, sus rutinas y el contenido motivational.
+          {t('admin.panelSubtitulo')}
         </ThemedText>
       </View>
 
       <Card>
         <ThemedText type="eyebrow" themeColor="textSecondary">
-          Agregar un alumno
+          {t('admin.agregarAlumno')}
         </ThemedText>
         <Field
-          label="Nombre del alumno"
+          label={t('admin.nombreAlumno')}
           value={query}
-          onChangeText={(t) => {
-            setQuery(t);
+          onChangeText={(value) => {
+            setQuery(value);
             setResults([]);
             setError(null);
           }}
           autoCapitalize="words"
           autoComplete="off"
-          placeholder="Ej: María González"
-          hint="Buscá por nombre y apellido (o email)."
+          placeholder={t('common.placeholderNombre')}
+          hint={t('admin.buscarHint')}
         />
         {message ? <ThemedText themeColor="success">{message}</ThemedText> : null}
         {error ? <ThemedText themeColor="danger">{error}</ThemedText> : null}
@@ -158,19 +161,19 @@ export default function AdminHomeScreen() {
         {results.length ? (
           <View style={styles.results}>
             <ThemedText type="smallBold" themeColor="textSecondary">
-              Resultados ({results.length})
+              {t('admin.resultados', { count: results.length })}
             </ThemedText>
             {results.map((r) => (
               <View key={r.id} style={styles.resultRow}>
                 <View style={styles.flex}>
-                  <ThemedText type="default">{r.name ?? 'Sin nombre'}</ThemedText>
+                  <ThemedText type="default">{r.name ?? t('admin.sinNombre')}</ThemedText>
                   <ThemedText type="small" themeColor="textSecondary">
                     {r.email}
                   </ThemedText>
                 </View>
                 <Button
                   variant="outline"
-                  label="Agregar"
+                  label={t('common.agregar')}
                   icon="account-plus-outline"
                   disabled={busy}
                   onPress={() => handleAssign(r)}
@@ -181,7 +184,7 @@ export default function AdminHomeScreen() {
         ) : null}
 
         <Button
-          label="Buscar alumno"
+          label={t('admin.buscarAlumno')}
           icon="account-search-outline"
           onPress={handleSearch}
           loading={searching}
@@ -191,14 +194,14 @@ export default function AdminHomeScreen() {
       <View style={styles.row}>
         <Button
           variant="secondary"
-          label="Catálogo de ejercicios"
+          label={t('admin.catalogoEjercicios')}
           icon="dumbbell"
           onPress={() => router.push('/ejercicios')}
           style={styles.flex}
         />
         <Button
           variant="secondary"
-          label="Frases y tips"
+          label={t('admin.frasesYTips')}
           icon="lightbulb-outline"
           onPress={() => router.push('/contenido')}
           style={styles.flex}
@@ -208,13 +211,13 @@ export default function AdminHomeScreen() {
       {!total ? (
         <EmptyState
           icon="account-group-outline"
-          title="Todavía no tenés alumnos"
-          subtitle="Agregá un alumno por su email para empezar a asignarle una rutina."
+          title={t('admin.sinAlumnos')}
+          subtitle={t('admin.sinAlumnosSubtitulo')}
         />
       ) : (
         <>
           <ThemedText type="eyebrow" themeColor="textSecondary">
-            Tus alumnos ({total})
+            {t('admin.tusAlumnos', { total })}
           </ThemedText>
           {alumnos.map((a) => {
             const st = stats[a.id];
@@ -228,10 +231,14 @@ export default function AdminHomeScreen() {
                     <ThemedText type="smallBold">{a.name ?? a.email}</ThemedText>
                     <ThemedText type="small" themeColor="textSecondary">
                       {st
-                        ? `${st.sessions} entrenamientos · ${formatMinutes(st.minutes)} · ${
-                            st.hasRoutine ? 'con rutina' : 'sin rutina'
-                          }`
-                        : 'Sin datos'}
+                        ? `${t('admin.alumnoResumen', {
+                            sesiones: st.sessions,
+                            minutos: formatMinutes(locale, st.minutes),
+                            rutina: st.hasRoutine
+                              ? t('admin.conRutina')
+                              : t('admin.sinRutina'),
+                          })}`
+                        : t('admin.sinDatos')}
                     </ThemedText>
                   </View>
                   <MaterialCommunityIcons name="chevron-right" size={20} color={theme.brandBright} />
@@ -244,7 +251,7 @@ export default function AdminHomeScreen() {
             <View style={styles.pager}>
               <Button
                 variant="secondary"
-                label="Anterior"
+                label={t('common.anterior')}
                 icon="chevron-left"
                 disabled={page === 0}
                 onPress={() => goToPage(page - 1)}
@@ -255,7 +262,7 @@ export default function AdminHomeScreen() {
               </ThemedText>
               <Button
                 variant="secondary"
-                label="Siguiente"
+                label={t('common.siguiente')}
                 icon="chevron-right"
                 disabled={page >= pages - 1}
                 onPress={() => goToPage(page + 1)}
@@ -266,7 +273,12 @@ export default function AdminHomeScreen() {
         </>
       )}
 
-      <Button variant="danger" label="Cerrar sesión" icon="logout" onPress={signOut} />
+      <Button
+        variant="danger"
+        label={t('common.cerrarSesion')}
+        icon="logout"
+        onPress={signOut}
+      />
     </Screen>
   );
 }

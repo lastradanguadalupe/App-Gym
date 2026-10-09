@@ -33,6 +33,21 @@ export function t(key: TranslationKey, vars?: TranslateVars): string {
   return i18n.t(key, vars) as string;
 }
 
+/**
+ * Igual que `t()` pero forzando el idioma.
+ *
+ * Lo necesitan los helpers puros de `src/lib/format.ts`: reciben el locale como
+ * argumento para ser testeables y no depender del estado global, así que no
+ * pueden usar el `t()` de arriba, que siempre lee `i18n.locale`.
+ */
+export function tIn(
+  locale: Idioma,
+  key: TranslationKey,
+  vars?: TranslateVars,
+): string {
+  return i18n.t(key, { ...vars, locale }) as string;
+}
+
 type Calendario = {
   months: readonly string[];
   monthsShort: readonly string[];

@@ -30,7 +30,8 @@ export async function fetchExercise(id: number): Promise<ExerciseWithGroup> {
 export async function createExercise(input: {
   muscle_group_id: number;
   name: string;
-  instructions: string;
+  /** Opcional: si viene vacío se guarda `null` y la UI muestra un texto localizado. */
+  instructions?: string | null;
   image_url?: string | null;
 }): Promise<void> {
   const res = await supabase.from('exercises').insert(input);

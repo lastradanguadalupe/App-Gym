@@ -12,8 +12,9 @@ import { ThemedText } from '@/components/themed-text';
 import { friendlyError } from '@/lib/errors';
 import { signInWithGoogle } from '@/lib/oauth';
 import { supabase } from '@/lib/supabase';
-import { validatePassword } from '@/lib/validation';
+import { PASSWORD_MIN_LENGTH, validatePassword } from '@/lib/validation';
 import { Spacing } from '@/constants/theme';
+import { t } from '@/i18n';
 
 export default function RegisterScreen() {
   const [name, setName] = useState('');
@@ -25,12 +26,12 @@ export default function RegisterScreen() {
 
   async function handleRegister() {
     if (!name.trim() || !email.trim()) {
-      setError('Completá nombre y email.');
+      setError(t('auth.faltanCamposRegistro'));
       return;
     }
     const passwordCheck = validatePassword(password);
     if (!passwordCheck.ok) {
-      setError(passwordCheck.message);
+      setError(t(passwordCheck.key, { min: PASSWORD_MIN_LENGTH }));
       return;
     }
     setLoading(true);
@@ -48,7 +49,7 @@ export default function RegisterScreen() {
 
     if (error) {
       setLoading(false);
-      setError(friendlyError(error, 'No se pudo crear la cuenta.'));
+      setError(friendlyError(error, 'auth.crearCuentaError'));
       return;
     }
 
@@ -58,11 +59,8 @@ export default function RegisterScreen() {
       return;
     }
 
-    Alert.alert(
-      'Revisá tu email',
-      'Te enviamos un mail de confirmación. Activá la cuenta y después ingresá.'
-    );
-    setError('Te enviamos un mail de confirmación. Revisá tu casilla (y spam).');
+    Alert.alert(t('auth.revisaTuEmail'), t('auth.emailConfirmacion'));
+    setError(t('auth.emailConfirmacionCorta'));
   }
 
   async function handleGoogle() {
@@ -72,7 +70,7 @@ export default function RegisterScreen() {
       await signInWithGoogle();
     } catch (e) {
       console.warn('Error con Google', e);
-      setError('No se pudo iniciar sesión con Google. Probá de nuevo.');
+      setError(t('auth.googleError'));
     } finally {
       setGoogleLoading(false);
     }
@@ -80,10 +78,7 @@ export default function RegisterScreen() {
 
   return (
     <Screen>
-      <AuthHeader
-        title="Creá tu cuenta"
-        subtitle="Empezá a entrenar: tu profe va a armarte una rutina a medida."
-      />
+      <AuthHeader title={t('auth.creaTuCuenta')} subtitle={t('auth.creaTuCuentaSubtitulo')} />
 
       <Card>
         <GoogleButton onPress={handleGoogle} loading={googleLoading} />
@@ -91,32 +86,32 @@ export default function RegisterScreen() {
         <AuthDivider />
 
         <Field
-          label="Nombre"
+          label={t('common.nombre')}
           value={name}
           onChangeText={setName}
-          placeholder="Cómo te llamás"
+          placeholder={t('auth.placeholderComoTeLlamas')}
         />
         <Field
-          label="Email"
+          label={t('ajustes.email')}
           value={email}
           onChangeText={setEmail}
           autoCapitalize="none"
           autoComplete="email"
           keyboardType="email-address"
-          placeholder="tucorreo@mail.com"
+          placeholder={t('common.placeholderEmail')}
         />
         <Field
-          label="Contraseña"
+          label={t('ajustes.contrasena')}
           value={password}
           onChangeText={setPassword}
           secureTextEntry
           autoComplete="new-password"
-          placeholder="Mínimo 6 caracteres"
+          placeholder={t('ajustes.contrasenaMuyCorta', { min: PASSWORD_MIN_LENGTH })}
         />
 
         {error ? <ThemedText themeColor="danger">{error}</ThemedText> : null}
         <Button
-          label="Crear cuenta"
+          label={t('auth.crearCuenta')}
           icon="account-plus-outline"
           onPress={handleRegister}
           loading={loading}
@@ -124,10 +119,10 @@ export default function RegisterScreen() {
       </Card>
 
       <ThemedText type="small" style={styles.footer}>
-        <Link href="/login">¿Ya tenés cuenta? Ingresá</Link>
+        <Link href="/login">{t('auth.yaTenesCuenta')}</Link>
       </ThemedText>
       <ThemedText type="small" themeColor="textSecondary" style={styles.footer}>
-        <Link href="/profe">¿Sos entrenador? Entrá por acá</Link>
+        <Link href="/profe">{t('auth.entradaProfe')}</Link>
       </ThemedText>
     </Screen>
   );

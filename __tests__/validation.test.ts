@@ -1,3 +1,4 @@
+import { t } from '@/i18n';
 import { validatePassword, PASSWORD_MIN_LENGTH } from '@/lib/validation';
 
 describe('validatePassword', () => {
@@ -5,7 +6,7 @@ describe('validatePassword', () => {
     const result = validatePassword('a1b2c3');
     expect(result.ok).toBe(false);
     if (!result.ok) {
-      expect(result.message).toContain(String(PASSWORD_MIN_LENGTH));
+      expect(t(result.key, { min: PASSWORD_MIN_LENGTH })).toContain(String(PASSWORD_MIN_LENGTH));
     }
   });
 
@@ -29,9 +30,20 @@ describe('validatePassword', () => {
     expect(validatePassword('Abc 123!@#').ok).toBe(true);
   });
 
-  it('el mensaje siempre es texto en castellano, nunca el error crudo', () => {
+  // Devuelve una clave, no un texto: el mismo chequeo tiene que servir para
+  // ambos idiomas sin que la validacion sepa del locale.
+  it('devuelve una clave de traduccion, no el error crudo', () => {
     const r = validatePassword('corta1');
     expect(r.ok).toBe(false);
-    if (!r.ok) expect(r.message).toMatch(/contraseña/i);
+    if (!r.ok) expect(r.key).toBe('ajustes.contrasenaMuyCorta');
+  });
+
+  it('la clave se traduce en ambos idiomas', () => {
+    const r = validatePassword('corta1');
+    expect(r.ok).toBe(false);
+    if (!r.ok) {
+      expect(t(r.key, { min: PASSWORD_MIN_LENGTH })).toMatch(/contraseña/i);
+      expect(t(r.key, { locale: 'en', min: PASSWORD_MIN_LENGTH })).toMatch(/password/i);
+    }
   });
 });

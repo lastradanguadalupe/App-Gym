@@ -88,13 +88,22 @@ export interface RoutineBlock {
   position: number;
 }
 
+/**
+ * Una fila de `routine_block_exercises`.
+ *
+ * `sets`, `reps`, `rest_seconds` y `peso_kg` son opcionales a propósito: el
+ * profe los define ejercicio por ejercicio y no hay valores por defecto. `null`
+ * = "sin definir" y se muestra como "—" o se omite, nunca como un número
+ * inventado. `peso_kg = 0` significa "peso corporal / sin peso".
+ */
 export interface RoutineBlockExercise {
   id: number;
   block_id: number;
   exercise_id: number;
-  sets: number;
-  reps: string;
-  rest_seconds: number;
+  sets: number | null;
+  reps: string | null;
+  rest_seconds: number | null;
+  peso_kg: number | null;
   notes: string | null;
   position: number;
   exercises?: Exercise & { muscle_groups?: MuscleGroup };

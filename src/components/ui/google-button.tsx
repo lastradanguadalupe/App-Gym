@@ -2,7 +2,9 @@ import { ActivityIndicator, Pressable, StyleSheet, View } from 'react-native';
 
 import { ThemedText } from '@/components/themed-text';
 import { Radius, Spacing } from '@/constants/theme';
+import { useI18n } from '@/context/i18n';
 import { useTheme } from '@/hooks/use-theme';
+import { t } from '@/i18n';
 
 type Props = {
   onPress: () => void;
@@ -12,6 +14,7 @@ type Props = {
 
 export function GoogleButton({ onPress, loading, disabled }: Props) {
   const theme = useTheme();
+  useI18n();
 
   return (
     <Pressable
@@ -32,7 +35,7 @@ export function GoogleButton({ onPress, loading, disabled }: Props) {
           </ThemedText>
         </View>
       )}
-      <ThemedText style={styles.label}>Continuar con Google</ThemedText>
+      <ThemedText style={styles.label}>{t('common.continuarConGoogle')}</ThemedText>
     </Pressable>
   );
 }

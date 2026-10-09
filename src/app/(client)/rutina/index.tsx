@@ -20,9 +20,18 @@ import {
   setBlockDay,
   type RoutineFull,
 } from '@/lib/db';
-import { formatDurationMs, WEEKDAYS_SHORT, regionLabel, weekdayLabel, weekdayOf } from '@/lib/format';
+import {
+  formatDurationMs,
+  regionLabel,
+  weekdayLabel,
+  weekdayLabelsShort,
+  weekdayOf,
+} from '@/lib/format';
+import { compactSummary } from '@/lib/routine-params';
 import { Radius, Spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
+import { useI18n } from '@/context/i18n';
+import { t } from '@/i18n';
 import type { RoutineBlock, RoutineSchedule, WorkoutSession } from '@/types';
 
 function isSameDay(iso: string, date: Date): boolean {
@@ -34,6 +43,7 @@ export default function RutinaScreen() {
   const theme = useTheme();
   const { session } = useSession();
   const workout = useWorkout();
+  const { locale } = useI18n();
 
   const [routine, setRoutine] = useState<RoutineFull | null>(null);
   const [schedule, setSchedule] = useState<RoutineSchedule[]>([]);
@@ -130,11 +140,11 @@ export default function RutinaScreen() {
   if (!routine || !routine.routine_blocks.length) {
     return (
       <Screen>
-        <ThemedText type="display">Tu rutina</ThemedText>
+        <ThemedText type="display">{t('nav.rutina')}</ThemedText>
         <EmptyState
           icon="clipboard-text-outline"
-          title="Aún no tenés rutina"
-          subtitle="Tu profe todavía no te asignó una rutina con bloques de entrenamiento."
+          title={t('rutina.sinRutina')}
+          subtitle={t('rutina.sinRutinaSubtitulo')}
         />
       </Screen>
     );
@@ -146,7 +156,7 @@ export default function RutinaScreen() {
         <Card>
           <View style={styles.timerHeader}>
             <ThemedText type="eyebrow" themeColor="teal">
-              En curso
+              {t('inicio.enCurso')}
             </ThemedText>
             <View style={[styles.liveDot, { backgroundColor: theme.teal }]} />
           </View>
@@ -154,13 +164,13 @@ export default function RutinaScreen() {
             {formatDurationMs(workout.elapsedMs)}
           </ThemedText>
           <ThemedText type="small" themeColor="textSecondary">
-            {workout.label ?? 'Entrenamiento'}
+            {workout.label ?? t('inicio.entrenamiento')}
           </ThemedText>
           <View style={styles.row}>
             {workout.status === 'running' ? (
               <Button
                 variant="secondary"
-                label="Pausar"
+                label={t('inicio.pausar')}
                 icon="pause"
                 onPress={workout.pause}
                 style={styles.flex}
@@ -168,13 +178,18 @@ export default function RutinaScreen() {
             ) : (
               <Button
                 variant="secondary"
-                label="Reanudar"
+                label={t('inicio.reanudar')}
                 icon="play"
                 onPress={workout.resume}
                 style={styles.flex}
               />
             )}
-            <Button label="Finalizar" icon="stop" onPress={handleFinishTimer} style={styles.flex} />
+            <Button
+              label={t('common.finalizar')}
+              icon="stop"
+              onPress={handleFinishTimer}
+              style={styles.flex}
+            />
           </View>
         </Card>
       ) : null}
@@ -191,17 +206,17 @@ export default function RutinaScreen() {
       {/* Resumen de la semana */}
       <Card>
         <ThemedText type="eyebrow" themeColor="textSecondary">
-          Tu semana
+          {t('rutina.tuSemana')}
         </ThemedText>
         {Array.from({ length: 7 }, (_, weekday) => {
           const block = blockOfWeekday(weekday);
           return (
             <View key={weekday} style={styles.weekRow}>
               <ThemedText type="small" themeColor={block ? 'text' : 'textSecondary'} style={styles.weekDay}>
-                {weekdayLabel(weekday)}
+                {weekdayLabel(locale, weekday)}
               </ThemedText>
               <ThemedText type="small" themeColor={block ? 'brandBright' : 'textSecondary'}>
-                {block ? block.name : 'Libre / Descanso'}
+                {block ? block.name : t('common.libreDescanso')}
               </ThemedText>
             </View>
           );
@@ -209,8 +224,7 @@ export default function RutinaScreen() {
       </Card>
 
       <ThemedText type="small" themeColor="textSecondary" style={styles.helper}>
-        Tocá el día que hace este bloque. Tu profe arma el plan y vos podés ajustarlo; tocá de nuevo
-        el mismo día para dejarlo libre.
+        {t('rutina.helperSemana')}
       </ThemedText>
 
       {routine.routine_blocks.map((block, index) => {
@@ -219,17 +233,17 @@ export default function RutinaScreen() {
           <Card key={block.id} style={styles.blockCard}>
             <View>
               <ThemedText type="smallBold" themeColor="brandBright">
-                Bloque {index + 1} · {regionLabel(block.region)}
+                {t('common.bloqueRegion', { num: index + 1, region: regionLabel(locale, block.region) })}
               </ThemedText>
               <ThemedText type="subtitle">{block.name}</ThemedText>
             </View>
 
             <View style={styles.group}>
               <ThemedText type="smallBold" themeColor="textSecondary">
-                Día de la semana
+                {t('common.diaSemana')}
               </ThemedText>
               <View style={styles.chipsRow}>
-                {WEEKDAYS_SHORT.map((label, weekday) => (
+                {weekdayLabelsShort(locale).map((label, weekday) => (
                   <Chip
                     key={weekday}
                     label={label}
@@ -252,7 +266,7 @@ export default function RutinaScreen() {
                     <View style={styles.flex}>
                       <ThemedText type="smallBold">{rbe.exercises?.name}</ThemedText>
                       <ThemedText type="small" themeColor="textSecondary">
-                        {rbe.sets} × {rbe.reps} · {rbe.rest_seconds}s descanso
+                        {compactSummary(locale, rbe)}
                       </ThemedText>
                     </View>
                     <MaterialCommunityIcons name="chevron-right" size={20} color={theme.brandBright} />
@@ -265,21 +279,21 @@ export default function RutinaScreen() {
               <View style={[styles.done, { backgroundColor: `${theme.teal}1A`, borderColor: `${theme.teal}40` }]}>
                 <MaterialCommunityIcons name="check-circle" size={20} color={theme.teal} />
                 <ThemedText type="smallBold" themeColor="teal">
-                  Completado hoy
+                  {t('rutina.completadoHoy')}
                 </ThemedText>
               </View>
             ) : (
               <View style={styles.row}>
                 <Button
                   variant="secondary"
-                  label="Marcar completo"
+                  label={t('rutina.marcarCompleto')}
                   icon="check"
                   onPress={() => markComplete(block)}
                   loading={savingId === block.id}
                   style={styles.flex}
                 />
                 <Button
-                  label="Empezar"
+                  label={t('inicio.empezar')}
                   icon="play"
                   onPress={() =>
                     workout.start({ blockId: block.id, routineId: routine.id, label: block.name })

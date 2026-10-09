@@ -13,21 +13,25 @@ import { Pressable, StyleSheet, View } from 'react-native';
 
 import { ThemedText } from '@/components/themed-text';
 import { MaxContentWidth, Radius, Shadows, Spacing } from '@/constants/theme';
+import { useI18n } from '@/context/i18n';
 import { useSession } from '@/context/session';
 import { TabBarHeightProvider } from '@/context/tab-bar';
 import { WorkoutProvider } from '@/context/workout';
 import { useTheme } from '@/hooks/use-theme';
+import { t, type TranslationKey } from '@/i18n';
 
-const TABS: { name: string; href: Href; label: string; icon: string }[] = [
-  { name: 'index', href: '/', label: 'Inicio', icon: 'house.fill' },
-  { name: 'rutina', href: '/rutina', label: 'Rutina', icon: 'dumbbell.fill' },
-  { name: 'historial', href: '/historial', label: 'Historial', icon: 'clock.fill' },
-  { name: 'perfil', href: '/perfil', label: 'Perfil', icon: 'person.fill' },
+const TABS: { name: string; href: Href; label: TranslationKey; icon: string }[] = [
+  { name: 'index', href: '/', label: 'nav.inicio', icon: 'house.fill' },
+  { name: 'rutina', href: '/rutina', label: 'nav.rutina', icon: 'dumbbell.fill' },
+  { name: 'historial', href: '/historial', label: 'nav.historial', icon: 'clock.fill' },
+  { name: 'perfil', href: '/perfil', label: 'nav.perfil', icon: 'person.fill' },
 ];
 
 export default function ClientWebLayout() {
   const [tabBarHeight, setTabBarHeight] = useState(0);
   const { profile } = useSession();
+  // Las etiquetas de las pestañas cambian con el idioma elegido.
+  useI18n();
 
   // Un profe no tiene tabs de alumno: lo mandamos a su panel.
   if (profile?.role === 'profe') {
@@ -43,7 +47,7 @@ export default function ClientWebLayout() {
             <CustomTabList onHeight={setTabBarHeight}>
               {TABS.map((tab) => (
                 <TabTrigger key={tab.name} name={tab.name} href={tab.href} asChild>
-                  <TabButton label={tab.label} icon={tab.icon} />
+                  <TabButton label={t(tab.label)} icon={tab.icon} />
                 </TabTrigger>
               ))}
             </CustomTabList>

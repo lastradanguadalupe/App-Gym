@@ -20,20 +20,47 @@ import {
   insertSession,
   type RoutineFull,
 } from '@/lib/db';
-import { formatDurationMs, formatMinutes, regionLabel, weekdayLabel, weekdayOf } from '@/lib/format';
+import {
+  formatDurationMs,
+  formatMinutes,
+  regionLabel,
+  weekdayLabel,
+  weekdayOf,
+} from '@/lib/format';
 import { Radius, Spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
+import { formatLongDate, t } from '@/i18n';
+import { useI18n } from '@/context/i18n';
 import type { MotivationalPhrase, NutritionTip, RoutineSchedule, WorkoutSession } from '@/types';
 
 function isSameDay(iso: string, date: Date): boolean {
   return new Date(iso).toDateString() === date.toDateString();
 }
 
+/**
+ * Inicio.
+ *
+ * Esta pantalla es la que fija el criterio de color de la app y no usa ningún
+ * valor suelto: todo sale de los tokens de `src/constants/theme.ts`.
+ *
+ * - `primary` (un solo azul) = identidad y acción principal: el hero, el botón
+ *   de empezar, "Ver mi rutina", el badge del día y los chips de ícono.
+ * - `accent` (un solo verde) = progreso y estado positivo: sesión en curso,
+ *   "¡Listo!", el tip de alimentación y el ícono de la cita. Es el único verde
+ *   de la pantalla; no se usa para decorar.
+ * - Neutros = todo lo demás: tarjetas (`surface`), el contenido dentro de ellas
+ *   (`surfaceElevated`) y el texto (`textPrimary` / `textSecondary`).
+ *
+ * Los tres indicadores de "Tu progreso" comparten el mismo tratamiento a
+ * propósito: miden lo mismo, así que pintar uno de verde sería una jerarquía
+ * inventada.
+ */
 export default function ClientHomeScreen() {
   const router = useRouter();
   const theme = useTheme();
   const { session, profile } = useSession();
   const workout = useWorkout();
+  const { locale } = useI18n();
 
   const [routine, setRoutine] = useState<RoutineFull | null>(null);
   const [schedule, setSchedule] = useState<RoutineSchedule[]>([]);
@@ -111,7 +138,7 @@ export default function ClientHomeScreen() {
   if (loading) {
     return (
       <Screen>
-        <ActivityIndicator size="large" color={theme.brand} style={styles.loader} />
+        <ActivityIndicator size="large" color={theme.primary} style={styles.loader} />
       </Screen>
     );
   }
@@ -121,19 +148,15 @@ export default function ClientHomeScreen() {
   return (
     <Screen padded={false} contentStyle={styles.screenContent}>
       <HeroHeader
-        eyebrow={new Date().toLocaleDateString('es-AR', {
-          weekday: 'long',
-          day: 'numeric',
-          month: 'long',
-        })}
-        title={firstName ? `Hola, ${firstName}` : 'Hola'}
-        subtitle={routine?.title ?? 'Entrená con constancia: eso es lo que construye resultados.'}
+        eyebrow={formatLongDate(new Date().toISOString(), locale)}
+        title={firstName ? t('inicio.holaNombre', { nombre: firstName }) : t('inicio.hola')}
+        subtitle={routine?.title ?? t('inicio.subtitulo')}
       />
 
       <View style={styles.body}>
         {phrase ? (
           <Card tone="brand" style={styles.quoteCard}>
-            <MaterialCommunityIcons name="format-quote-open" size={22} color={theme.teal} />
+            <MaterialCommunityIcons name="format-quote-open" size={22} color={theme.accent} />
             <ThemedText type="quote" style={styles.quote}>
               {phrase.text}
             </ThemedText>
@@ -145,26 +168,26 @@ export default function ClientHomeScreen() {
           </Card>
         ) : null}
 
-        <Section title="Tu entrenamiento de hoy">
+        <Section title={t('inicio.entrenamientoHoy')}>
           {workout.status === 'running' || workout.status === 'paused' ? (
             <Card>
               <View style={styles.timerHeader}>
-                <ThemedText type="eyebrow" themeColor="teal">
-                  En curso
+                <ThemedText type="eyebrow" themeColor="accent">
+                  {t('inicio.enCurso')}
                 </ThemedText>
-                <View style={[styles.liveDot, { backgroundColor: theme.teal }]} />
+                <View style={[styles.liveDot, { backgroundColor: theme.accent }]} />
               </View>
               <ThemedText type="display" style={styles.timer}>
                 {formatDurationMs(workout.elapsedMs)}
               </ThemedText>
               <ThemedText type="small" themeColor="textSecondary">
-                {workout.label ?? 'Entrenamiento'}
+                {workout.label ?? t('inicio.entrenamiento')}
               </ThemedText>
               <View style={styles.row}>
                 {workout.status === 'running' ? (
                   <Button
                     variant="secondary"
-                    label="Pausar"
+                    label={t('inicio.pausar')}
                     icon="pause"
                     onPress={workout.pause}
                     style={styles.flex}
@@ -172,66 +195,73 @@ export default function ClientHomeScreen() {
                 ) : (
                   <Button
                     variant="secondary"
-                    label="Reanudar"
+                    label={t('inicio.reanudar')}
                     icon="play"
                     onPress={workout.resume}
                     style={styles.flex}
                   />
                 )}
-                <Button label="Finalizar" icon="stop" onPress={handleFinishTimer} style={styles.flex} />
+                <Button
+                  label={t('common.finalizar')}
+                  icon="stop"
+                  onPress={handleFinishTimer}
+                  style={styles.flex}
+                />
               </View>
             </Card>
           ) : !routine ? (
             <EmptyState
               icon="clipboard-text-outline"
-              title="Todavía no tenés rutina"
-              subtitle="Tu profe todavía no te asignó una rutina. Cuando lo haga, vas a verla acá."
+              title={t('inicio.sinRutina')}
+              subtitle={t('inicio.sinRutinaSubtitulo')}
             />
           ) : todayBlock && scheduledToday ? (
             <Card>
               <View style={styles.badgeRow}>
-                <View style={[styles.badge, { backgroundColor: theme.brandSurface }]}>
-                  <ThemedText type="smallBold" themeColor="brandBright">
-                    {weekdayLabel(todayWeekday)}
+                <View style={[styles.badge, { backgroundColor: theme.surfaceBrand, borderColor: theme.primaryBorder }]}>
+                  <ThemedText type="smallBold" themeColor="primaryBright">
+                    {weekdayLabel(locale, todayWeekday)}
                   </ThemedText>
                 </View>
-                <View style={[styles.badge, { backgroundColor: theme.backgroundElement }]}>
+                <View style={[styles.badge, { backgroundColor: theme.surfaceElevated, borderColor: theme.border }]}>
                   <MaterialCommunityIcons
                     name="map-marker-outline"
                     size={14}
                     color={theme.textSecondary}
                   />
                   <ThemedText type="smallBold" themeColor="textSecondary">
-                    {regionLabel(todayBlock.region)}
+                    {regionLabel(locale, todayBlock.region)}
                   </ThemedText>
                 </View>
               </View>
 
               <ThemedText type="subtitle">{todayBlock.name}</ThemedText>
               <ThemedText type="small" themeColor="textSecondary">
-                {todayBlock.routine_block_exercises.length} ejercicios ·{' '}
-                {todayBlock.routine_block_exercises.reduce((acc, e) => acc + e.sets, 0)} series
+                {t('format.ejerciciosSeries', {
+                  ejercicios: todayBlock.routine_block_exercises.length,
+                  series: todayBlock.routine_block_exercises.reduce((acc, e) => acc + (e.sets ?? 0), 0),
+                })}
               </ThemedText>
 
               {completedToday ? (
-                <View style={[styles.done, { backgroundColor: `${theme.teal}1A`, borderColor: `${theme.teal}40` }]}>
-                  <MaterialCommunityIcons name="check-circle" size={20} color={theme.teal} />
-                  <ThemedText type="smallBold" themeColor="teal" style={styles.flex}>
-                    ¡Listo! Hoy ya marcaste este entrenamiento como completado.
+                <View style={[styles.done, { backgroundColor: theme.accentSubtle, borderColor: theme.accentBorder }]}>
+                  <MaterialCommunityIcons name="check-circle" size={20} color={theme.accent} />
+                  <ThemedText type="smallBold" themeColor="accent" style={styles.flex}>
+                    {t('inicio.listo')}
                   </ThemedText>
                 </View>
               ) : (
                 <View style={styles.row}>
                   <Button
                     variant="secondary"
-                    label="Completado"
+                    label={t('inicio.completado')}
                     icon="check"
                     onPress={markComplete}
                     loading={saving}
                     style={styles.flex}
                   />
                   <Button
-                    label="Empezar"
+                    label={t('inicio.empezar')}
                     icon="play"
                     onPress={() =>
                       workout.start({ blockId: todayBlock.id, routineId: routine.id, label: todayBlock.name })
@@ -244,45 +274,36 @@ export default function ClientHomeScreen() {
           ) : (
             <EmptyState
               icon="weather-night"
-              title="Hoy es día de descanso"
-              subtitle="Entrá a tu rutina para elegir qué días hacés cada parte del cuerpo."
+              title={t('inicio.descanso')}
+              subtitle={t('inicio.descansoSubtitulo')}
             />
           )}
         </Section>
 
-        <Section title="Tu progreso">
+        <Section title={t('inicio.tuProgreso')}>
           <View style={styles.row}>
-            <StatCard icon="dumbbell" value={String(totalSessions)} label="Entrenamientos" />
-            <StatCard
-              icon="timer-outline"
-              value={formatMinutes(totalMinutes)}
-              label="Tiempo total"
-              tint={theme.brandBright}
-            />
-            <StatCard
-              icon="fire"
-              value={String(weekSessions)}
-              label="Esta semana"
-              tint={theme.teal}
-            />
+            <StatCard icon="dumbbell" value={String(totalSessions)} label={t('inicio.entrenamientos')} />
+            <StatCard icon="timer-outline" value={formatMinutes(locale, totalMinutes)} label={t('inicio.tiempoTotal')} />
+            <StatCard icon="fire" value={String(weekSessions)} label={t('inicio.estaSemana')} />
           </View>
         </Section>
 
+        {/* Solo aparece cuando no hay nada que entrenar, así que es la acción
+            principal de la pantalla en ese estado: lleva el azul `primary`. */}
         {!routine || !routine.routine_blocks.length ? (
           <Button
-            variant="secondary"
-            label="Ver mi rutina"
+            label={t('inicio.verMiRutina')}
             icon="arrow-right"
             onPress={() => router.push('/rutina')}
           />
         ) : null}
 
         {tip ? (
-          <Section title="Tip de alimentación">
+          <Section title={t('inicio.tipAlimentacion')}>
             <Card>
               <View style={styles.tipHeader}>
-                <View style={[styles.tipIcon, { backgroundColor: `${theme.teal}1F`, borderColor: `${theme.teal}40` }]}>
-                  <MaterialCommunityIcons name="food-apple-outline" size={20} color={theme.teal} />
+                <View style={[styles.tipIcon, { backgroundColor: theme.accentSubtle, borderColor: theme.accentBorder }]}>
+                  <MaterialCommunityIcons name="food-apple-outline" size={20} color={theme.accent} />
                 </View>
                 <ThemedText type="default" style={styles.flex}>
                   {tip.title}
@@ -297,10 +318,10 @@ export default function ClientHomeScreen() {
 
         <Row>
           <ThemedText type="small" themeColor="textSecondary" style={styles.flex}>
-            ¿Querés ver todo tu progreso?
+            {t('inicio.queresVerProgreso')}
           </ThemedText>
           <ThemedText type="linkPrimary" onPress={() => router.push('/historial')}>
-            Ver historial
+            {t('inicio.verHistorial')}
           </ThemedText>
         </Row>
       </View>
@@ -325,6 +346,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: Spacing.md,
     paddingVertical: Spacing.one,
     borderRadius: Radius.pill,
+    borderWidth: StyleSheet.hairlineWidth,
   },
   done: {
     flexDirection: 'row',

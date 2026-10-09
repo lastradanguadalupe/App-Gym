@@ -6,6 +6,7 @@ import {
   regionLabel,
   regionShort,
   weekdayLabel,
+  weekdayLabelsShort,
   weekdayOf,
 } from '@/lib/format';
 
@@ -39,13 +40,30 @@ describe('weekdayOf', () => {
 
 describe('weekdayLabel', () => {
   it('devuelve la etiqueta correcta para cada indice', () => {
-    expect(weekdayLabel(0)).toBe('Lunes');
-    expect(weekdayLabel(6)).toBe('Domingo');
+    expect(weekdayLabel('es', 0)).toBe('Lunes');
+    expect(weekdayLabel('es', 6)).toBe('Domingo');
   });
 
   it('normaliza indices fuera de rango', () => {
-    expect(weekdayLabel(7)).toBe('Lunes');
-    expect(weekdayLabel(-1)).toBe('Domingo');
+    expect(weekdayLabel('es', 7)).toBe('Lunes');
+    expect(weekdayLabel('es', -1)).toBe('Domingo');
+  });
+
+  it('traduce al idioma pedido', () => {
+    expect(weekdayLabel('en', 0)).toBe('Monday');
+    expect(weekdayLabel('en', 6)).toBe('Sunday');
+  });
+});
+
+describe('weekdayLabelsShort', () => {
+  // El schema arranca en lunes, pero el vocabulario arranca en domingo: este es
+  // el mismo off-by-one que weekdayOf invierte, y se nota al pintar los chips.
+  it('devuelve los siete dias en orden del schema', () => {
+    expect(weekdayLabelsShort('es')).toEqual(['Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb', 'Dom']);
+  });
+
+  it('traduce al idioma pedido', () => {
+    expect(weekdayLabelsShort('en')).toEqual(['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun']);
   });
 });
 
@@ -124,29 +142,39 @@ describe('formatDurationMs', () => {
 
 describe('formatMinutes', () => {
   it('usa un guion para null', () => {
-    expect(formatMinutes(null)).toBe('—');
+    expect(formatMinutes('es', null)).toBe('—');
   });
 
   it('redondea minutos sueltos', () => {
-    expect(formatMinutes(45)).toBe('45 min');
+    expect(formatMinutes('es', 45)).toBe('45 min');
   });
 
   it('descompone horas y minutos', () => {
-    expect(formatMinutes(90)).toBe('1 h 30 min');
-    expect(formatMinutes(60)).toBe('1 h');
-    expect(formatMinutes(125)).toBe('2 h 5 min');
+    expect(formatMinutes('es', 90)).toBe('1 h 30 min');
+    expect(formatMinutes('es', 60)).toBe('1 h');
+    expect(formatMinutes('es', 125)).toBe('2 h 5 min');
+  });
+
+  it('usa el idioma pedido', () => {
+    expect(formatMinutes('en', 45)).toBe('45 min');
+    expect(formatMinutes('en', 125)).toBe('2 h 5 min');
   });
 });
 
 describe('regionLabel / regionShort', () => {
   it('cubre las cuatro regiones', () => {
-    expect(regionLabel('superior')).toBe('Tren superior');
-    expect(regionLabel('inferior')).toBe('Tren inferior');
-    expect(regionLabel('core')).toBe('Core');
-    expect(regionLabel('full')).toBe('Cuerpo completo');
+    expect(regionLabel('es', 'superior')).toBe('Tren superior');
+    expect(regionLabel('es', 'inferior')).toBe('Tren inferior');
+    expect(regionLabel('es', 'core')).toBe('Core');
+    expect(regionLabel('es', 'full')).toBe('Cuerpo completo');
 
-    expect(regionShort('superior')).toBe('Sup');
-    expect(regionShort('full')).toBe('Full');
+    expect(regionShort('es', 'superior')).toBe('Sup');
+    expect(regionShort('es', 'full')).toBe('Full');
+  });
+
+  it('traduce las regiones al idioma pedido', () => {
+    expect(regionLabel('en', 'superior')).toBe('Upper body');
+    expect(regionLabel('en', 'full')).toBe('Full body');
   });
 });
 

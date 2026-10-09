@@ -18,6 +18,7 @@ import {
 } from '@/lib/db';
 import { Spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
+import { t } from '@/i18n';
 import type { MotivationalPhrase, NutritionTip } from '@/types';
 
 export default function AdminContenidoScreen() {
@@ -83,31 +84,31 @@ export default function AdminContenidoScreen() {
     <Screen>
       <View style={styles.header}>
         <ThemedText type="eyebrow" themeColor="text">
-          Contenido
+          {t('admin.contenido')}
         </ThemedText>
-        <ThemedText type="display">Frases y tips</ThemedText>
+        <ThemedText type="display">{t('admin.frasesYTips')}</ThemedText>
         <ThemedText type="small" themeColor="textSecondary">
-          Es lo que tus alumnos van a ver en su pantalla de inicio.
+          {t('admin.contenidoSubtitulo')}
         </ThemedText>
       </View>
 
       <Card>
         <ThemedText type="eyebrow" themeColor="textSecondary">
-          Frase motivadora nueva
+          {t('admin.fraseNueva')}
         </ThemedText>
         <Field
           value={phraseText}
           onChangeText={setPhraseText}
-          placeholder="Escribí una frase motivadora..."
+          placeholder={t('admin.placeholderFrase')}
           multiline
         />
-        <Button label="Agregar frase" icon="plus" onPress={handleAddPhrase} />
+        <Button label={t('admin.agregarFrase')} icon="plus" onPress={handleAddPhrase} />
       </Card>
 
       {phrases.length ? (
         <Card tone="flat">
           <ThemedText type="eyebrow" themeColor="textSecondary">
-            En uso ({phrases.length})
+            {t('admin.enUso', { count: phrases.length })}
           </ThemedText>
           {phrases.map((p) => (
             <View key={p.id} style={styles.row}>
@@ -116,7 +117,7 @@ export default function AdminContenidoScreen() {
               </ThemedText>
               <IconAction
                 icon="trash-can-outline"
-                label="Borrar frase"
+                label={t('admin.borrarFrase')}
                 color={theme.danger}
                 onPress={() => deletePhrase(p.id).then(load)}
               />
@@ -127,35 +128,46 @@ export default function AdminContenidoScreen() {
 
       <Card>
         <ThemedText type="eyebrow" themeColor="textSecondary">
-          Tip de alimentación nuevo
+          {t('admin.tipNuevo')}
         </ThemedText>
-        <Field label="Título" value={tipTitle} onChangeText={setTipTitle} placeholder="Ej: Hidratación constante" />
-        <Field label="Detalle" value={tipBody} onChangeText={setTipBody} multiline numberOfLines={3} />
-        <Button label="Agregar tip" icon="plus" onPress={handleAddTip} />
+        <Field
+          label={t('common.titulo')}
+          value={tipTitle}
+          onChangeText={setTipTitle}
+          placeholder={t('admin.placeholderTip')}
+        />
+        <Field
+          label={t('common.detalle')}
+          value={tipBody}
+          onChangeText={setTipBody}
+          multiline
+          numberOfLines={3}
+        />
+        <Button label={t('admin.agregarTip')} icon="plus" onPress={handleAddTip} />
       </Card>
 
       {tips.length ? (
         <ThemedText type="eyebrow" themeColor="textSecondary">
-          Tips publicados ({tips.length})
+          {t('admin.tipsPublicados', { count: tips.length })}
         </ThemedText>
       ) : null}
 
-      {tips.map((t) => (
-        <Card key={t.id}>
+      {tips.map((tip) => (
+        <Card key={tip.id}>
           <View style={styles.row}>
             <View style={styles.flex}>
-              <ThemedText type="default">{t.title}</ThemedText>
-              {t.body ? (
+              <ThemedText type="default">{tip.title}</ThemedText>
+              {tip.body ? (
                 <ThemedText type="small" themeColor="textSecondary">
-                  {t.body}
+                  {tip.body}
                 </ThemedText>
               ) : null}
             </View>
             <IconAction
               icon="trash-can-outline"
-              label="Borrar tip"
+              label={t('admin.borrarTip')}
               color={theme.danger}
-              onPress={() => deleteTip(t.id).then(load)}
+              onPress={() => deleteTip(tip.id).then(load)}
             />
           </View>
         </Card>

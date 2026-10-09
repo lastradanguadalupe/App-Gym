@@ -11,13 +11,10 @@ import { useSession } from '@/context/session';
 import { upsertClientDetails } from '@/lib/db';
 import { parseTags } from '@/lib/format';
 import { Spacing } from '@/constants/theme';
+import { t } from '@/i18n';
 import type { Experiencia } from '@/types';
 
-const EXPERIENCIAS: { value: Experiencia; label: string }[] = [
-  { value: 'inicio', label: 'Principiante' },
-  { value: 'intermedio', label: 'Intermedio' },
-  { value: 'avanzado', label: 'Avanzado' },
-];
+const EXPERIENCIA_VALUES: Experiencia[] = ['inicio', 'intermedio', 'avanzado'];
 
 export default function OnboardingScreen() {
   const { session, refreshProfile } = useSession();
@@ -36,7 +33,7 @@ export default function OnboardingScreen() {
     if (!uid) return;
 
     if (fechaNacimiento && !/^\d{4}-\d{2}-\d{2}$/.test(fechaNacimiento.trim())) {
-      setError('La fecha debe ser con formato AAAA-MM-DD.');
+      setError(t('medidas.fechaInvalida'));
       return;
     }
 
@@ -54,7 +51,7 @@ export default function OnboardingScreen() {
       });
       await refreshProfile();
     } catch (e) {
-      setError('No se pudo guardar. Intentá de nuevo.');
+      setError(t('common.errorGenerico'));
       console.warn(e);
     } finally {
       setSaving(false);
@@ -64,81 +61,85 @@ export default function OnboardingScreen() {
   return (
     <Screen>
       <ThemedText type="eyebrow" themeColor="brandBright">
-        Primer paso
+        {t('onboarding.primerPaso')}
       </ThemedText>
-      <ThemedText type="display">Contanos un poco sobre vos</ThemedText>
+      <ThemedText type="display">{t('onboarding.titulo')}</ThemedText>
       <ThemedText type="small" themeColor="textSecondary">
-        Esta información es para que tu profe arme la rutina que mejor se adapte a tu cuerpo y tus
-        objetivos. La podés modificar cuando quieras.
+        {t('onboarding.subtitulo')}
       </ThemedText>
 
       <Card>
         <Field
-          label="Fecha de nacimiento"
+          label={t('perfil.fechaNacimiento')}
           value={fechaNacimiento}
           onChangeText={setFechaNacimiento}
-          placeholder="AAAA-MM-DD (ej: 1995-04-12)"
+          placeholder={t('common.placeholderIsoEj')}
           autoCapitalize="none"
         />
         <View style={styles.row}>
           <View style={styles.half}>
             <Field
-              label="Altura (cm)"
+              label={t('onboarding.alturaCm')}
               value={altura}
               onChangeText={setAltura}
               keyboardType="decimal-pad"
-              placeholder="175"
+              placeholder={t('common.placeholderAltura')}
             />
           </View>
           <View style={styles.half}>
             <Field
-              label="Peso (kg)"
+              label={t('onboarding.pesoKg')}
               value={peso}
               onChangeText={setPeso}
               keyboardType="decimal-pad"
-              placeholder="70"
+              placeholder={t('common.placeholderPeso')}
             />
           </View>
         </View>
 
         <Field
-          label="Objetivo"
+          label={t('perfil.objetivo')}
           value={objetivo}
           onChangeText={setObjetivo}
-          placeholder="Ej: ganar músculo, bajar de peso, mantenerme..."
+          placeholder={t('onboarding.objetivoPlaceholder')}
         />
 
         <Field
-          label="Enfermedades (separadas por coma)"
+          label={t('perfil.enfermedades')}
           value={enfermedades}
           onChangeText={setEnfermedades}
-          placeholder="Ej: hipertensión, diabetes... (si ninguna, dejalo vacío)"
+          placeholder={t('onboarding.enfermedadesPlaceholder')}
         />
         <Field
-          label="Lesiones (separadas por coma)"
+          label={t('perfil.lesiones')}
           value={lesiones}
           onChangeText={setLesiones}
-          placeholder="Ej: rodilla, hombro... (si ninguna, dejalo vacío)"
+          placeholder={t('onboarding.lesionesPlaceholder')}
         />
 
         <View style={styles.group}>
           <ThemedText type="smallBold" themeColor="textSecondary">
-            Nivel de experiencia
+            {t('perfil.experiencia')}
           </ThemedText>
           <View style={styles.row}>
-            {EXPERIENCIAS.map((exp) => (
+            {EXPERIENCIA_VALUES.map((value) => (
               <Chip
-                key={exp.value}
-                label={exp.label}
-                selected={experiencia === exp.value}
-                onPress={() => setExperiencia(exp.value)}
+                key={value}
+                label={t(`experiencia.${value}`)}
+                selected={experiencia === value}
+                onPress={() => setExperiencia(value)}
               />
             ))}
           </View>
         </View>
 
         {error ? <ThemedText themeColor="danger">{error}</ThemedText> : null}
-        <Button label="Guardar y empezar" icon="arrow-right" onPress={handleSave} loading={saving} />
+        <Button
+          label={t('onboarding.guardarYEmpezar')}
+          icon="arrow-right"
+          onPress={handleSave}
+          loading={saving}
+        />
       </Card>
     </Screen>
   );
