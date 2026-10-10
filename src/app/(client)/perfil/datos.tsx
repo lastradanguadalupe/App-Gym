@@ -5,14 +5,17 @@ import { ThemedText } from '@/components/themed-text';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Chip } from '@/components/ui/chip';
+import { DateField } from '@/components/ui/date-field';
+import { HeightField, SexoField, WeightField } from '@/components/ui/body-fields';
 import { Field } from '@/components/ui/field';
 import { Screen, Section } from '@/components/ui/screen';
 import { Spacing } from '@/constants/theme';
+import { useI18n } from '@/context/i18n';
 import { useSession } from '@/context/session';
 import { fetchProfile, upsertClientDetails } from '@/lib/db';
 import { computeEdad, parseTags } from '@/lib/format';
 import { t } from '@/i18n';
-import type { Experiencia, Profile } from '@/types';
+import type { Experiencia, Profile, Sexo } from '@/types';
 
 /**
  * Cuestionario de la rutina.
@@ -37,11 +40,13 @@ function experienciaLabel(value: Experiencia): string {
 }
 
 export default function MisDatosScreen() {
+  const { locale } = useI18n();
   const { session, profile, clientDetails, refreshProfile } = useSession();
 
-  const [fechaNacimiento, setFechaNacimiento] = useState('');
-  const [altura, setAltura] = useState('');
-  const [peso, setPeso] = useState('');
+  const [fechaNacimiento, setFechaNacimiento] = useState<string | null>(null);
+  const [sexo, setSexo] = useState<Sexo | null>(null);
+  const [altura, setAltura] = useState<number | null>(null);
+  const [peso, setPeso] = useState<number | null>(null);
   const [objetivo, setObjetivo] = useState('');
   const [enfermedades, setEnfermedades] = useState('');
   const [lesiones, setLesiones] = useState('');
@@ -71,9 +76,10 @@ export default function MisDatosScreen() {
 
   useEffect(() => {
     if (!clientDetails) return;
-    setFechaNacimiento(clientDetails.fecha_nacimiento ?? '');
-    setAltura(clientDetails.altura_cm != null ? String(clientDetails.altura_cm) : '');
-    setPeso(clientDetails.peso_kg != null ? String(clientDetails.peso_kg) : '');
+    setFechaNacimiento(clientDetails.fecha_nacimiento ?? null);
+    setSexo(clientDetails.sexo ?? null);
+    setAltura(clientDetails.altura_cm ?? null);
+    setPeso(clientDetails.peso_kg ?? null);
     setObjetivo(clientDetails.objetivo ?? '');
     setEnfermedades((clientDetails.enfermedades ?? []).join(', '));
     setLesiones((clientDetails.lesiones ?? []).join(', '));
@@ -90,9 +96,10 @@ export default function MisDatosScreen() {
     setError(null);
     try {
       await upsertClientDetails(uid, {
-        fecha_nacimiento: fechaNacimiento.trim() || null,
-        altura_cm: altura ? Number(altura) : null,
-        peso_kg: peso ? Number(peso) : null,
+        fecha_nacimiento: fechaNacimiento,
+        sexo,
+        altura_cm: altura,
+        peso_kg: peso,
         objetivo: objetivo.trim() || null,
         enfermedades: parseTags(enfermedades),
         lesiones: parseTags(lesiones),
@@ -125,38 +132,48 @@ export default function MisDatosScreen() {
             </ThemedText>
           ) : null}
 
-          <Field
+          <DateField
             label={t('perfil.fechaNacimiento')}
             value={fechaNacimiento}
-            onChangeText={setFechaNacimiento}
-            placeholder="AAAA-MM-DD"
-            autoCapitalize="none"
+            onChange={setFechaNacimiento}
+            placeholder={t('onboarding.elegirFecha')}
+            locale={locale}
           />
-          <View style={styles.row}>
-            <View style={styles.half}>
-              <Field
-                label={`${t('perfil.altura')} (${t('perfil.cm')})`}
-                value={altura}
-                onChangeText={setAltura}
-                keyboardType="decimal-pad"
-              />
-            </View>
-            <View style={styles.half}>
-              <Field
-                label={`${t('perfil.peso')} (${t('perfil.kg')})`}
-                value={peso}
-                onChangeText={setPeso}
-                keyboardType="decimal-pad"
-              />
-            </View>
-          </View>
+
+          <SexoField
+            label={t('onboarding.sexo')}
+            value={sexo}
+            onChange={setSexo}
+            locale={locale}
+          />
+
+          <WeightField
+            label={`${t('perfil.peso')} (${t('perfil.kg')})`}
+            value={peso}
+            onChange={setPeso}
+            locale={locale}
+          />
+
+          <HeightField
+            label={`${t('perfil.altura')} (${t('perfil.cm')})`}
+            value={altura}
+            onChange={setAltura}
+            locale={locale}
+          />
+
           <Field label={t('perfil.objetivo')} value={objetivo} onChangeText={setObjetivo} />
           <Field
             label={t('perfil.enfermedades')}
             value={enfermedades}
             onChangeText={setEnfermedades}
+            hint={t('onboarding.enfermedadesHint')}
           />
-          <Field label={t('perfil.lesiones')} value={lesiones} onChangeText={setLesiones} />
+          <Field
+            label={t('perfil.lesiones')}
+            value={lesiones}
+            onChangeText={setLesiones}
+            hint={t('onboarding.lesionesHint')}
+          />
 
           <View style={styles.group}>
             <ThemedText type="smallBold" themeColor="textSecondary">
@@ -191,5 +208,4 @@ export default function MisDatosScreen() {
 const styles = StyleSheet.create({
   group: { gap: Spacing.md, paddingTop: Spacing.one },
   row: { flexDirection: 'row', gap: Spacing.two, flexWrap: 'wrap' },
-  half: { flex: 1, minWidth: 120 },
 });

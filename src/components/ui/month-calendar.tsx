@@ -19,6 +19,9 @@ type Props = {
   weekdayLabels: readonly string[];
   /** Etiqueta legible del día, p. ej. "12 de marzo". */
   formatDayLabel: (iso: string) => string;
+  /** Fechas `YYYY-MM-DD` fuera de `[minIso, maxIso]` se atenúan y no se pueden tocar. */
+  minIso?: string;
+  maxIso?: string;
 };
 
 /**
@@ -37,10 +40,13 @@ export function MonthCalendar({
   onSelectDay,
   weekdayLabels,
   formatDayLabel,
+  minIso,
+  maxIso,
 }: Props) {
   const theme = useTheme();
   const weeks = monthMatrix({ year, month });
   const todayIso = toIsoDate(today);
+  const selectable = Boolean(onSelectDay);
 
   return (
     <View style={styles.wrap}>
@@ -63,15 +69,18 @@ export function MonthCalendar({
             const isSelected = iso === selectedDay;
             // El futuro no se atenúa si también entrenaste: esa marca es real.
             const isFuture = !trained && iso > todayIso;
+            const outOfRange =
+              (minIso != null && iso < minIso) || (maxIso != null && iso > maxIso);
+            const disabled = !selectable || outOfRange;
 
             return (
               <Pressable
                 key={dayIndex}
-                onPress={onSelectDay ? () => onSelectDay(iso) : undefined}
-                disabled={!onSelectDay}
-                accessibilityRole={onSelectDay ? 'button' : 'text'}
+                onPress={selectable && !outOfRange ? () => onSelectDay?.(iso) : undefined}
+                disabled={disabled}
+                accessibilityRole={selectable ? 'button' : 'text'}
                 accessibilityLabel={formatDayLabel(iso)}
-                accessibilityState={{ selected: isSelected }}
+                accessibilityState={{ selected: isSelected, disabled: outOfRange || undefined }}
                 style={styles.cell}>
                 <View
                   style={[
@@ -90,7 +99,7 @@ export function MonthCalendar({
                     type={trained || isSelected ? 'smallBold' : 'small'}
                     style={{
                       color: trained || isSelected ? theme.onAccent : theme.textSecondary,
-                      opacity: isFuture ? 0.35 : 1,
+                      opacity: isFuture || outOfRange ? 0.35 : 1,
                     }}>
                     {day}
                   </ThemedText>

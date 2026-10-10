@@ -16,6 +16,16 @@ import { Radius, Spacing } from '@/constants/theme';
 import { useI18n } from '@/context/i18n';
 import { useTheme } from '@/hooks/use-theme';
 import { t } from '@/i18n';
+import {
+  WHEEL_MIN_WIDTH,
+  WHEEL_ROW_GAP,
+  WHEEL_STEP_BUTTON,
+  resolveWheelActiveIndex,
+  type WheelOption,
+} from '@/lib/wheel';
+
+export type { WheelOption };
+export { resolveWheelActiveIndex };
 
 /**
  * Selector deslizable (wheel picker) armado a mano: una columna de valores con
@@ -33,18 +43,28 @@ import { t } from '@/i18n';
  *  - flechas arriba/abajo y Home/End con el selector enfocado (web)
  *  - botones − / + como fallback accesible
  *  - `accessibilityRole="adjustable"` con acciones increment/decrement
+ *
+ * Acepta cualquier tipo de valor (`number` o `string`): la rueda de texto solo
+ * cambia en las etiquetas, la mecánica es la misma. `value = null` con un
+ * `suggestedValue` deja la rueda "sin elegir": muestra el valor sugerido
+ * atenuado y lo confirma en cuanto el usuario la mueve o la toca. Sin
+ * `suggestedValue`, `null` es una opción más de la lista (como el "—" del panel
+ * del profe), que es el comportamiento viejo.
  */
-export type WheelOption = { value: number | null; label: string };
-
-type Props = {
-  options: WheelOption[];
-  /** `null` = sin definir (la opción `null` de la lista, si existe). */
-  value: number | null;
-  onChange: (value: number | null) => void;
+type Props<V extends number | string> = {
+  options: WheelOption<V>[];
+  /** `null` = sin definir (la opción `null` de la lista o el valor sugerido). */
+  value: V | null;
+  onChange: (value: V | null) => void;
   /** Etiqueta accesible, ej: "Series". */
   label: string;
   itemHeight?: number;
   visibleCount?: number;
+  /**
+   * Valor mostrado atenuado mientras `value` es `null`, a la espera de que el
+   * usuario elija. Al primer gesto, ese valor se confirma y `onChange` avisa.
+   */
+  suggestedValue?: V;
 };
 
 const ITEM_HEIGHT = 40;
@@ -64,14 +84,15 @@ type WebKeyboardEvent = {
   preventDefault?: () => void;
 };
 
-export function WheelPicker({
+export function WheelPicker<V extends number | string = number>({
   options,
   value,
   onChange,
   label,
   itemHeight = ITEM_HEIGHT,
   visibleCount = VISIBLE_COUNT,
-}: Props) {
+  suggestedValue,
+}: Props<V>) {
   const theme = useTheme();
   // Las etiquetas de accesibilidad (sumar/restar) cambian con el idioma.
   useI18n();
@@ -80,17 +101,17 @@ export function WheelPicker({
   const offsetRef = useRef(0);
   const snapTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   /** Último valor que salió DESDE el scroll: sirve para no pelear con el gesto. */
-  const fromScrollRef = useRef<number | null>(null);
+  const fromScrollRef = useRef<V | null>(null);
   const dragRef = useRef({ startY: 0, startOffset: 0, moved: false });
   const [dragging, setDragging] = useState(false);
 
   const half = Math.floor(visibleCount / 2);
   const pad = half * itemHeight;
   const maxOffset = Math.max(0, (options.length - 1) * itemHeight);
-  const selectedIndex = Math.max(
-    0,
-    options.findIndex((o) => Object.is(o.value, value))
-  );
+
+  const activeIndex = resolveWheelActiveIndex(options, value, suggestedValue);
+  /** Todavía sin elegir: la rueda muestra la sugerencia atenuada. */
+  const unconfirmed = value == null && suggestedValue !== undefined;
 
   useEffect(
     () => () => {
@@ -106,11 +127,11 @@ export function WheelPicker({
       if (fromScrollRef.current === value) fromScrollRef.current = null;
       return;
     }
-    const y = selectedIndex * itemHeight;
+    const y = activeIndex * itemHeight;
     if (Math.abs(offsetRef.current - y) < 0.5) return;
     offsetRef.current = y;
     scrollRef.current?.scrollTo({ y, animated: false });
-  }, [value, selectedIndex, itemHeight]);
+  }, [value, activeIndex, itemHeight]);
 
   function indexFromOffset(y: number): number {
     return Math.min(Math.max(Math.round(y / itemHeight), 0), options.length - 1);
@@ -140,10 +161,10 @@ export function WheelPicker({
     scheduleSnap();
   }
 
-  /** − / + y teclado: mueven la selección un paso. */
+  /** − / + y teclado: mueven la selección un paso desde lo que se ve centrado. */
   function step(delta: number) {
     fromScrollRef.current = null;
-    emitIndex(Math.min(Math.max(selectedIndex + delta, 0), options.length - 1));
+    emitIndex(Math.min(Math.max(activeIndex + delta, 0), options.length - 1));
   }
 
   function select(index: number) {
@@ -220,8 +241,8 @@ export function WheelPicker({
         accessibilityValue={{
           min: 0,
           max: options.length - 1,
-          now: selectedIndex,
-          text: options[selectedIndex]?.label ?? '',
+          now: activeIndex,
+          text: options[activeIndex]?.label ?? '',
         }}
         accessibilityActions={[
           { name: 'increment', label: t('common.sumar') },
@@ -239,7 +260,7 @@ export function WheelPicker({
           },
           dragging && { borderColor: theme.primaryBorder },
         ]}>
-        {/* Banda central: resalta el valor seleccionado. */}
+        {/* Banda central: resalta el valor seleccionado (o la sugerencia). */}
         <View
           pointerEvents="none"
           style={[
@@ -248,7 +269,7 @@ export function WheelPicker({
               top: pad,
               height: itemHeight,
               backgroundColor: theme.primarySubtle,
-              borderColor: theme.primaryBorder,
+              borderColor: unconfirmed ? theme.border : theme.primaryBorder,
             },
           ]}
         />
@@ -261,7 +282,7 @@ export function WheelPicker({
           onScroll={handleScroll}
           contentContainerStyle={{ paddingVertical: pad }}>
           {options.map((option, index) => {
-            const distance = Math.abs(index - selectedIndex);
+            const distance = Math.abs(index - activeIndex);
             const isCenter = distance === 0;
             return (
               <Pressable
@@ -274,8 +295,12 @@ export function WheelPicker({
                 <ThemedText
                   type={isCenter ? 'subtitle' : 'default'}
                   style={{
-                    color: isCenter ? theme.primaryBright : theme.textSecondary,
-                    opacity: isCenter ? 1 : Math.max(0.3, 1 - distance * 0.32),
+                    color: isCenter
+                      ? unconfirmed
+                        ? theme.textMuted
+                        : theme.primaryBright
+                      : theme.textSecondary,
+                    opacity: isCenter ? (unconfirmed ? 0.55 : 1) : Math.max(0.3, 1 - distance * 0.32),
                     fontVariant: ['tabular-nums'],
                   }}>
                   {option.label}
@@ -321,11 +346,11 @@ const styles = StyleSheet.create({
   row: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: Spacing.two,
+    gap: WHEEL_ROW_GAP,
   },
   wheel: {
     flex: 1,
-    minWidth: 120,
+    minWidth: WHEEL_MIN_WIDTH,
     borderRadius: Radius.md,
     borderWidth: StyleSheet.hairlineWidth,
     overflow: 'hidden',
@@ -343,8 +368,8 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   step: {
-    width: 36,
-    height: 36,
+    width: WHEEL_STEP_BUTTON,
+    height: WHEEL_STEP_BUTTON,
     borderRadius: Radius.pill,
     borderWidth: StyleSheet.hairlineWidth,
     alignItems: 'center',
