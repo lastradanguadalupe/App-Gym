@@ -180,5 +180,5 @@ const styles = StyleSheet.create({
   loader: { marginTop: Spacing.five },
   header: { gap: Spacing.one },
   row: { flexDirection: 'row', alignItems: 'center', gap: Spacing.two },
-  flex: { flex: 1 },
+  flex: { flex: 1, minWidth: 0 },
 });

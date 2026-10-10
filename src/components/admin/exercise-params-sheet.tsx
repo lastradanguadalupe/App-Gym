@@ -3,7 +3,7 @@ import { useState, type ReactNode } from 'react';
 import { Modal, Pressable, ScrollView, StyleSheet, View } from 'react-native';
 
 import { ThemedText } from '@/components/themed-text';
-import { Button } from '@/components/ui/button';
+import { Button, ButtonRow } from '@/components/ui/button';
 import { Chip } from '@/components/ui/chip';
 import { WheelPicker, type WheelOption } from '@/components/ui/wheel-picker';
 import { Radius, Shadows, Spacing } from '@/constants/theme';
@@ -277,7 +277,7 @@ export function ExerciseParamsSheet({ title, initial, saving, onCancel, onSave }
             {error ? <ThemedText themeColor="danger">{error}</ThemedText> : null}
           </ScrollView>
 
-          <View style={styles.actions}>
+          <ButtonRow>
             <Button
               variant="secondary"
               label={t('common.cancelar')}
@@ -291,7 +291,7 @@ export function ExerciseParamsSheet({ title, initial, saving, onCancel, onSave }
               loading={saving}
               style={styles.flex}
             />
-          </View>
+          </ButtonRow>
         </Pressable>
       </Pressable>
     </Modal>
@@ -347,6 +347,5 @@ const styles = StyleSheet.create({
   subLabel: { marginBottom: Spacing.one },
   range: { flexDirection: 'row', gap: Spacing.two },
   chipsRow: { flexDirection: 'row', flexWrap: 'wrap', gap: Spacing.one },
-  actions: { flexDirection: 'row', gap: Spacing.two },
   flex: { flex: 1 },
 });

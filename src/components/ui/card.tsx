@@ -72,10 +72,10 @@ export function StatCard({
       <View style={[styles.statIcon, { backgroundColor: theme.primarySubtle, borderColor: theme.primaryBorder }]}>
         <MaterialCommunityIcons name={icon} size={20} color={theme.primaryBright} />
       </View>
-      <ThemedText type="title" style={styles.statValue}>
+      <ThemedText type="title" style={styles.statValue} numberOfLines={2} adjustsFontSizeToFit minimumFontScale={0.6}>
         {value}
       </ThemedText>
-      <ThemedText type="small" themeColor="textSecondary">
+      <ThemedText type="small" themeColor="textSecondary" style={styles.statLabel} numberOfLines={2}>
         {label}
       </ThemedText>
     </Card>
@@ -114,7 +114,13 @@ const styles = StyleSheet.create({
     ...Shadows.card,
   },
   padded: { padding: Spacing.three },
-  stat: { flex: 1, gap: Spacing.two, alignItems: 'flex-start' },
+  /**
+   * `minWidth: 0` + `alignItems: 'stretch'` permiten que la tarjeta baje de su
+   * ancho de contenido: sin eso, un valor o un rótulo largos ("Entrenamientos",
+   * "12 h 45 min") fijan un mínimo y la fila de tres tarjetas desborda en
+   * pantallas angostas. Con esto el texto envuelve dentro de la tarjeta.
+   */
+  stat: { flex: 1, minWidth: 0, gap: Spacing.two, alignItems: 'stretch' },
   statIcon: {
     width: 36,
     height: 36,
@@ -124,6 +130,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   statValue: { lineHeight: 34 },
+  statLabel: { flexShrink: 1 },
   row: {
     flexDirection: 'row',
     alignItems: 'center',

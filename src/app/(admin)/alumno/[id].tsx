@@ -918,7 +918,7 @@ const styles = StyleSheet.create({
   meta: { minWidth: 90, gap: 2 },
   metaWide: { width: '100%', gap: 2 },
   statsRow: { flexDirection: 'row', gap: Spacing.two, paddingVertical: Spacing.two },
-  flex: { flex: 1 },
+  flex: { flex: 1, minWidth: 0 },
   headerRow: { flexDirection: 'row', alignItems: 'flex-start', gap: Spacing.two },
   blockBox: { gap: Spacing.two },
   exerciseRow: {

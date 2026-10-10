@@ -4,7 +4,7 @@ import { useCallback, useState } from 'react';
 import { ActivityIndicator, Pressable, StyleSheet, View } from 'react-native';
 
 import { ThemedText } from '@/components/themed-text';
-import { Button } from '@/components/ui/button';
+import { Button, ButtonRow } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Chip } from '@/components/ui/chip';
 import { EmptyState } from '@/components/ui/empty';
@@ -166,7 +166,7 @@ export default function RutinaScreen() {
           <ThemedText type="small" themeColor="textSecondary">
             {workout.label ?? t('inicio.entrenamiento')}
           </ThemedText>
-          <View style={styles.row}>
+          <ButtonRow>
             {workout.status === 'running' ? (
               <Button
                 variant="secondary"
@@ -190,7 +190,7 @@ export default function RutinaScreen() {
               onPress={handleFinishTimer}
               style={styles.flex}
             />
-          </View>
+          </ButtonRow>
         </Card>
       ) : null}
 
@@ -283,7 +283,7 @@ export default function RutinaScreen() {
                 </ThemedText>
               </View>
             ) : (
-              <View style={styles.row}>
+              <ButtonRow>
                 <Button
                   variant="secondary"
                   label={t('rutina.marcarCompleto')}
@@ -300,7 +300,7 @@ export default function RutinaScreen() {
                   }
                   style={styles.flex}
                 />
-              </View>
+              </ButtonRow>
             )}
           </Card>
         );
@@ -343,6 +343,5 @@ const styles = StyleSheet.create({
   liveDot: { width: 8, height: 8, borderRadius: 4 },
   timer: { fontVariant: ['tabular-nums'] },
   pressed: { opacity: 0.7 },
-  flex: { flex: 1 },
-  row: { flexDirection: 'row', gap: Spacing.two },
+  flex: { flex: 1, minWidth: 0 },
 });

@@ -1,4 +1,4 @@
-import { calendar, formatLongDate, tIn } from '@/i18n';
+import { calendar, formatLongDate, formatLongDateOf, tIn } from '@/i18n';
 import type { Idioma, Region } from '@/types';
 
 /**
@@ -53,14 +53,29 @@ export function computeEdad(fechaNac: string | null): number | null {
   return age;
 }
 
+/**
+ * Fecha larga de un timestamp (`timestamptz`) o de un `YYYY-MM-DD`.
+ *
+ * Los timestamps de la base vienen en UTC; se formatean con los getters locales
+ * para mostrar el día del usuario. Las fechas sin hora se parsean a mano (con
+ * `formatLongDate`) para que no las corra el mediodía UTC.
+ */
 export function formatDate(iso: string, locale: Idioma): string {
-  return formatLongDate(iso.slice(0, 10), locale);
+  const value = iso.trim();
+  if (/^\d{4}-\d{2}-\d{2}$/.test(value)) return formatLongDate(value, locale);
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return iso;
+  return formatLongDateOf(date, locale);
 }
 
+/** Fecha y hora locales de un timestamp: "10 de octubre de 2026 · 09:30". */
 export function formatDateTime(iso: string, locale: Idioma): string {
-  const [date, clock] = iso.split('T');
-  if (!clock) return formatDate(iso, locale);
-  return `${formatLongDate(date.slice(0, 10), locale)} · ${clock.slice(0, 5)}`;
+  const value = iso.trim();
+  if (/^\d{4}-\d{2}-\d{2}$/.test(value)) return formatDate(value, locale);
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return formatDate(value, locale);
+  const pad = (n: number) => String(n).padStart(2, '0');
+  return `${formatLongDateOf(date, locale)} · ${pad(date.getHours())}:${pad(date.getMinutes())}`;
 }
 
 export function formatDurationMs(ms: number): string {

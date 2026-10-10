@@ -4,7 +4,7 @@ import { useCallback, useState } from 'react';
 import { ActivityIndicator, StyleSheet, View } from 'react-native';
 
 import { ThemedText } from '@/components/themed-text';
-import { Button } from '@/components/ui/button';
+import { Button, ButtonRow } from '@/components/ui/button';
 import { Card, Row, StatCard } from '@/components/ui/card';
 import { EmptyState } from '@/components/ui/empty';
 import { HeroHeader } from '@/components/ui/hero';
@@ -29,7 +29,7 @@ import {
 } from '@/lib/format';
 import { Radius, Spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
-import { formatLongDate, t } from '@/i18n';
+import { formatWeekdayLongDate, t } from '@/i18n';
 import { useI18n } from '@/context/i18n';
 import type { MotivationalPhrase, NutritionTip, RoutineSchedule, WorkoutSession } from '@/types';
 
@@ -148,7 +148,7 @@ export default function ClientHomeScreen() {
   return (
     <Screen padded={false} contentStyle={styles.screenContent}>
       <HeroHeader
-        eyebrow={formatLongDate(new Date().toISOString(), locale)}
+        eyebrow={formatWeekdayLongDate(new Date(), locale)}
         title={firstName ? t('inicio.holaNombre', { nombre: firstName }) : t('inicio.hola')}
         subtitle={routine?.title ?? t('inicio.subtitulo')}
       />
@@ -183,7 +183,7 @@ export default function ClientHomeScreen() {
               <ThemedText type="small" themeColor="textSecondary">
                 {workout.label ?? t('inicio.entrenamiento')}
               </ThemedText>
-              <View style={styles.row}>
+              <ButtonRow>
                 {workout.status === 'running' ? (
                   <Button
                     variant="secondary"
@@ -207,7 +207,7 @@ export default function ClientHomeScreen() {
                   onPress={handleFinishTimer}
                   style={styles.flex}
                 />
-              </View>
+              </ButtonRow>
             </Card>
           ) : !routine ? (
             <EmptyState
@@ -251,7 +251,7 @@ export default function ClientHomeScreen() {
                   </ThemedText>
                 </View>
               ) : (
-                <View style={styles.row}>
+                <ButtonRow>
                   <Button
                     variant="secondary"
                     label={t('inicio.completado')}
@@ -268,7 +268,7 @@ export default function ClientHomeScreen() {
                     }
                     style={styles.flex}
                   />
-                </View>
+                </ButtonRow>
               )}
             </Card>
           ) : (
@@ -357,7 +357,7 @@ const styles = StyleSheet.create({
     borderWidth: StyleSheet.hairlineWidth,
   },
   row: { flexDirection: 'row', gap: Spacing.two, alignItems: 'stretch' },
-  flex: { flex: 1 },
+  flex: { flex: 1, minWidth: 0 },
   tipHeader: { flexDirection: 'row', alignItems: 'center', gap: Spacing.md },
   tipIcon: {
     width: 40,

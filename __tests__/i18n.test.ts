@@ -1,4 +1,13 @@
-import { calendar, formatLongDate, formatShortDate, i18n, monthTitle, t } from '@/i18n';
+import {
+  calendar,
+  formatLongDate,
+  formatLongDateOf,
+  formatShortDate,
+  formatWeekdayLongDate,
+  i18n,
+  monthTitle,
+  t,
+} from '@/i18n';
 
 afterEach(() => {
   i18n.locale = 'es';
@@ -67,5 +76,41 @@ describe('vocabulario de fechas', () => {
   it('devuelve el input tal cual si la fecha no es valida', () => {
     expect(formatShortDate('basura', 'es')).toBe('basura');
     expect(formatLongDate('', 'en')).toBe('');
+  });
+
+  it('arma la fecha larga desde un Date en hora local', () => {
+    // `new Date(2026, 9, 10)` se construye en hora local; los getters locales
+    // devuelven exactamente esos valores en cualquier zona horaria.
+    expect(formatLongDateOf(new Date(2026, 9, 10, 12), 'es')).toBe('10 de octubre de 2026');
+    expect(formatLongDateOf(new Date(2026, 9, 10, 12), 'en')).toBe('October 10, 2026');
+  });
+});
+
+describe('formatWeekdayLongDate', () => {
+  it('incluye el día de la semana y la fecha, capitalizado, en ambos idiomas', () => {
+    expect(formatWeekdayLongDate(new Date(2026, 9, 10, 12), 'es')).toBe(
+      'Sábado, 10 de octubre'
+    );
+    expect(formatWeekdayLongDate(new Date(2026, 9, 10, 12), 'en')).toBe(
+      'Saturday, October 10'
+    );
+  });
+
+  it('antes del domingo arranca la semana desde domingo', () => {
+    // 2026-10-04 es domingo; getDay() = 0.
+    expect(formatWeekdayLongDate(new Date(2026, 9, 4, 9), 'es')).toBe('Domingo, 4 de octubre');
+  });
+
+  // Regresion del header de Inicio: se formateaba una fecha local pasando por
+  // `toISOString()` (que la convierte a UTC) y a la noche eso mostraba el día
+  // siguiente. Esta función nunca debe ver ni texto raw ni marcadores de UTC.
+  it('nunca devuelve un timestamp crudo ni la hora en UTC', () => {
+    const d = new Date(2026, 9, 10, 23, 30);
+    const raw = d.toISOString();
+    expect(raw).toMatch(/T.+Z$/);
+
+    const s = formatWeekdayLongDate(d, 'es');
+    expect(s).toBe('Sábado, 10 de octubre');
+    expect(s).not.toMatch(/T|\.975Z|Z$/);
   });
 });

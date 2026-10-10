@@ -4,7 +4,7 @@ import { useCallback, useState } from 'react';
 import { ActivityIndicator, Pressable, StyleSheet, View } from 'react-native';
 
 import { ThemedText } from '@/components/themed-text';
-import { Button } from '@/components/ui/button';
+import { Button, ButtonRow } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { EmptyState } from '@/components/ui/empty';
 import { Field } from '@/components/ui/field';
@@ -191,7 +191,7 @@ export default function AdminHomeScreen() {
         />
       </Card>
 
-      <View style={styles.row}>
+      <ButtonRow>
         <Button
           variant="secondary"
           label={t('admin.catalogoEjercicios')}
@@ -206,7 +206,7 @@ export default function AdminHomeScreen() {
           onPress={() => router.push('/contenido')}
           style={styles.flex}
         />
-      </View>
+      </ButtonRow>
 
       {!total ? (
         <EmptyState
@@ -248,7 +248,7 @@ export default function AdminHomeScreen() {
           })}
 
           {pages > 1 ? (
-            <View style={styles.pager}>
+            <ButtonRow>
               <Button
                 variant="secondary"
                 label={t('common.anterior')}
@@ -257,7 +257,7 @@ export default function AdminHomeScreen() {
                 onPress={() => goToPage(page - 1)}
                 style={styles.flex}
               />
-              <ThemedText type="small" themeColor="textSecondary">
+              <ThemedText type="small" themeColor="textSecondary" style={styles.pagerText}>
                 {page + 1} / {pages}
               </ThemedText>
               <Button
@@ -268,7 +268,7 @@ export default function AdminHomeScreen() {
                 onPress={() => goToPage(page + 1)}
                 style={styles.flex}
               />
-            </View>
+            </ButtonRow>
           ) : null}
         </>
       )}
@@ -285,10 +285,9 @@ export default function AdminHomeScreen() {
 
 const styles = StyleSheet.create({
   loader: { marginTop: Spacing.five },
-  row: { flexDirection: 'row', gap: Spacing.two },
-  pager: { flexDirection: 'row', alignItems: 'center', gap: Spacing.two },
+  pagerText: { textAlign: 'center' },
   alumnoCard: { flexDirection: 'row', alignItems: 'center', gap: Spacing.two },
-  flex: { flex: 1 },
+  flex: { flex: 1, minWidth: 0 },
   pressed: { opacity: 0.7 },
   results: { gap: Spacing.two },
   resultRow: {

@@ -2,7 +2,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { StyleSheet, View } from 'react-native';
 
 import { ThemedText } from '@/components/themed-text';
-import { Button } from '@/components/ui/button';
+import { Button, ButtonRow } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { EmptyState } from '@/components/ui/empty';
 import { Field } from '@/components/ui/field';
@@ -254,7 +254,7 @@ export default function MedidasScreen() {
                   {/* Confirmación en línea en vez de `Alert`: el mismo camino en
                       native y web, y la fila no se desmonta mientras se decide. */}
                   {pendingDelete === medida.id ? (
-                    <View style={styles.confirm}>
+                    <ButtonRow>
                       <Button
                         label={t('common.cancelar')}
                         variant="ghost"
@@ -265,7 +265,7 @@ export default function MedidasScreen() {
                         variant="danger"
                         onPress={() => handleDelete(medida.id)}
                       />
-                    </View>
+                    </ButtonRow>
                   ) : (
                     <Button
                       label={t('medidas.eliminar')}
@@ -298,7 +298,7 @@ function Stat({ label, value }: { label: string; value: string }) {
 
 const styles = StyleSheet.create({
   stats: { flexDirection: 'row', gap: Spacing.two },
-  stat: { flex: 1, gap: 2 },
+  stat: { flex: 1, minWidth: 0, gap: 2 },
   statValue: { fontSize: 17 },
   row: { flexDirection: 'row', gap: Spacing.two },
   half: { flex: 1, minWidth: 120 },
@@ -310,5 +310,4 @@ const styles = StyleSheet.create({
     paddingVertical: Spacing.md,
   },
   itemText: { flex: 1, gap: 2 },
-  confirm: { flexDirection: 'row', alignItems: 'center', gap: Spacing.two },
 });

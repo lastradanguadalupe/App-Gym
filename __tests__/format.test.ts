@@ -1,5 +1,7 @@
 import {
   computeEdad,
+  formatDate,
+  formatDateTime,
   formatDurationMs,
   formatMinutes,
   parseTags,
@@ -175,6 +177,44 @@ describe('regionLabel / regionShort', () => {
   it('traduce las regiones al idioma pedido', () => {
     expect(regionLabel('en', 'superior')).toBe('Upper body');
     expect(regionLabel('en', 'full')).toBe('Full body');
+  });
+});
+
+describe('formatDate', () => {
+  it('formatea fechas sin hora sin que las corra el mediodía UTC', () => {
+    expect(formatDate('2026-03-12', 'es')).toBe('12 de marzo de 2026');
+    expect(formatDate('2026-03-12', 'en')).toBe('March 12, 2026');
+  });
+
+  it('devuelve la fecha local de un timestamp aunque venga en UTC', () => {
+    expect(formatDate('2026-03-12T08:30:00', 'es')).toBe('12 de marzo de 2026');
+  });
+
+  it('no pinta basura: devuelve el input si no se puede parsear', () => {
+    expect(formatDate('no-es-una-fecha', 'es')).toBe('no-es-una-fecha');
+    expect(formatDate('', 'es')).toBe('');
+  });
+});
+
+describe('formatDateTime', () => {
+  it('combina la fecha local con la hora local', () => {
+    // ISO sin zona se interpreta como hora local: el resultado es el mismo en
+    // cualquier zona horaria del entorno de test.
+    expect(formatDateTime('2026-03-12T08:30:00', 'es')).toBe('12 de marzo de 2026 · 08:30');
+    expect(formatDateTime('2026-03-12T08:30:00', 'en')).toBe('March 12, 2026 · 08:30');
+  });
+
+  it('remapea timestamps de la base (sufijo +00:00) a hora local', () => {
+    // Se arma el resultado esperado con los getters locales: la prueba es que
+    // no se usa el texto UTC bruto (`clock.slice`) para pintar la hora.
+    const d = new Date('2026-03-12T15:30:00+00:00');
+    const pad = (n: number) => String(n).padStart(2, '0');
+    const expected = `12 de marzo de 2026 · ${pad(d.getHours())}:${pad(d.getMinutes())}`;
+    expect(formatDateTime('2026-03-12T15:30:00+00:00', 'es')).toBe(expected);
+  });
+
+  it('cae a fecha sola si el timestamp no trae hora', () => {
+    expect(formatDateTime('2026-03-12', 'es')).toBe('12 de marzo de 2026');
   });
 });
 

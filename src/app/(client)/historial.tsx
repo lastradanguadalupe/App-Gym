@@ -120,7 +120,7 @@ export default function HistorialScreen() {
 const styles = StyleSheet.create({
   loader: { marginTop: Spacing.five },
   statsRow: { flexDirection: 'row', gap: Spacing.two },
-  flex: { flex: 1 },
+  flex: { flex: 1, minWidth: 0 },
   sessionCard: { gap: Spacing.two },
   sessionHeader: { flexDirection: 'row', alignItems: 'center', gap: Spacing.md },
   duration: {
