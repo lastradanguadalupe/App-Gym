@@ -69,6 +69,21 @@ export function isCurrentMonth({ year, month }: Mes, today = new Date()): boolea
   return year === today.getFullYear() && month === today.getMonth();
 }
 
+/**
+ * Lunes a las 00:00 (hora local) de la semana que contiene `date`.
+ *
+ * El dashboard del profe agrupa "esta semana" de lunes a domingo. El servidor no
+ * conoce el huso del usuario, así que el rango se calcula acá y se pasa a la RPC
+ * como timestamptz. `date.getDay()` usa 0=domingo, así que el lunes queda a 6
+ * días de distancia cuando caemos en domingo.
+ */
+export function startOfWeekMonday(date: Date): Date {
+  const monday = new Date(date.getFullYear(), date.getMonth(), date.getDate());
+  const daysSinceMonday = (monday.getDay() + 6) % WEEK_LENGTH;
+  monday.setDate(monday.getDate() - daysSinceMonday);
+  return monday;
+}
+
 /** Días con al menos un entrenamiento Completado, como `YYYY-MM-DD`. */
 export function trainedDays(completedOn: readonly string[]): Set<string> {
   return new Set(completedOn.map((iso) => iso.slice(0, 10)));

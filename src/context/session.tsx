@@ -9,14 +9,16 @@ import {
   type ReactNode,
 } from 'react';
 
-import { fetchClientDetails, fetchProfile } from '@/lib/db';
+import { fetchClientDetails, fetchLatestConsent, fetchProfile } from '@/lib/db';
 import { supabase } from '@/lib/supabase';
-import type { ClientDetails, Profile } from '@/types';
+import type { ClientDetails, Consent, Profile } from '@/types';
 
 type SessionContextValue = {
   session: Session | null;
   profile: Profile | null;
   clientDetails: ClientDetails | null;
+  /** Último consentimiento de salud (otorgado o retirado). `null` si nunca hubo. */
+  healthConsent: Consent | null;
   loading: boolean;
   profileLoading: boolean;
   refreshProfile: () => Promise<void>;
@@ -29,6 +31,7 @@ export function SessionProvider({ children }: { children: ReactNode }) {
   const [session, setSession] = useState<Session | null>(null);
   const [profile, setProfile] = useState<Profile | null>(null);
   const [clientDetails, setClientDetails] = useState<ClientDetails | null>(null);
+  const [healthConsent, setHealthConsent] = useState<Consent | null>(null);
   const [loading, setLoading] = useState(true);
   const [profileLoading, setProfileLoading] = useState(true);
   const loadIdRef = useRef(0);
@@ -40,6 +43,7 @@ export function SessionProvider({ children }: { children: ReactNode }) {
     if (!uid) {
       setProfile(null);
       setClientDetails(null);
+      setHealthConsent(null);
       setProfileLoading(false);
       return;
     }
@@ -47,20 +51,30 @@ export function SessionProvider({ children }: { children: ReactNode }) {
     setProfileLoading(true);
     try {
       const p = await fetchProfile(uid);
+
+      // Se resuelve todo ANTES de publicar estado: el guard de la raíz decide
+      // entre onboarding, consentimiento y app según `clientDetails` +
+      // `healthConsent`, y no queremos que un frame intermedio muestre la
+      // pantalla equivocada.
+      let details: ClientDetails | null = null;
+      let consent: Consent | null = null;
+      if (p.role === 'cliente') {
+        [details, consent] = await Promise.all([
+          fetchClientDetails(uid),
+          fetchLatestConsent(uid, 'health_data'),
+        ]);
+      }
+
       if (!isCurrent()) return;
       setProfile(p);
-      if (p.role === 'cliente') {
-        const details = await fetchClientDetails(uid);
-        if (!isCurrent()) return;
-        setClientDetails(details);
-      } else {
-        setClientDetails(null);
-      }
+      setClientDetails(details);
+      setHealthConsent(consent);
     } catch (e) {
       if (!isCurrent()) return;
       console.warn('Error cargando perfil', e);
       setProfile(null);
       setClientDetails(null);
+      setHealthConsent(null);
     } finally {
       if (isCurrent()) setProfileLoading(false);
     }
@@ -77,6 +91,7 @@ export function SessionProvider({ children }: { children: ReactNode }) {
       } else {
         setProfile(null);
         setClientDetails(null);
+        setHealthConsent(null);
         setProfileLoading(false);
       }
       setLoading(false);
@@ -89,6 +104,7 @@ export function SessionProvider({ children }: { children: ReactNode }) {
       } else {
         setProfile(null);
         setClientDetails(null);
+        setHealthConsent(null);
         setProfileLoading(false);
       }
     });
@@ -104,6 +120,7 @@ export function SessionProvider({ children }: { children: ReactNode }) {
       session,
       profile,
       clientDetails,
+      healthConsent,
       loading,
       profileLoading,
       refreshProfile: async () => {
@@ -113,10 +130,11 @@ export function SessionProvider({ children }: { children: ReactNode }) {
         await supabase.auth.signOut();
         setProfile(null);
         setClientDetails(null);
+        setHealthConsent(null);
         setProfileLoading(false);
       },
     }),
-    [session, profile, clientDetails, loading, profileLoading]
+    [session, profile, clientDetails, healthConsent, loading, profileLoading]
   );
 
   return <SessionContext.Provider value={value}>{children}</SessionContext.Provider>;

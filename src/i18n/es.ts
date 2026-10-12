@@ -118,6 +118,7 @@ const es = {
      */
     soloProfeBuscaAlumnos: 'Solo un profe puede buscar alumnos.',
     soloProfeAsignaAlumnos: 'Solo un profe puede asignarse alumnos.',
+    alumnoYaTieneProfe: 'Ese alumno ya tiene un profe asignado.',
     soloProfeListaStaff: 'Solo un profe puede ver la lista de staff.',
     soloProfeHabilitaStaff: 'Solo un profe puede habilitar accesos de staff.',
     soloProfeQuitaStaff: 'Solo un profe puede quitar accesos de staff.',
@@ -128,6 +129,8 @@ const es = {
     grupoMuscularConEjercicios:
       'Este grupo muscular tiene ejercicios asociados. Borralos o reasignalos primero.',
     ejercicioEnUso: 'Este ejercicio está en uso por al menos una rutina. Quitalo de las rutinas primero.',
+    consentimientoSaludRequerido:
+      'No se pueden guardar datos de salud sin consentimiento vigente.',
   },
 
   /** Regiones del cuerpo y su abreviatura, en las pantallas del alumno y del profe. */
@@ -199,6 +202,14 @@ const es = {
     avance: 'Tu avance',
     paraArmarRutina: 'Completá estos datos para que tu profe pueda armar tu rutina.',
 
+    // Perfil del profe (`/cuenta`).
+    datosPersonales: 'Datos personales',
+    profeSubtitulo: 'Tu información como entrenador.',
+    aniosExperiencia: 'Años de experiencia',
+    aniosExperienciaPlaceholder: 'Ej: 5',
+    experienciaInvalida: 'Ingresá un número entre 0 y 60.',
+    ajustesCuenta: 'Ajustes de la cuenta',
+
     edadAnios: 'Edad: %{edad} años',
     fechaNacimiento: 'Fecha de nacimiento',
     objetivo: 'Objetivo',
@@ -269,6 +280,8 @@ const es = {
     nombreActualizado: 'Nombre actualizado.',
     nombreVacio: 'El nombre no puede estar vacío.',
     sinDefinir: 'Sin definir',
+    politicaPrivacidad: 'Política de Privacidad',
+    privacidadSeccion: 'Privacidad',
   },
 
   medidas: {
@@ -310,6 +323,13 @@ const es = {
     ejerciciosSeries: '%{ejercicios} ejercicios · %{series} series',
     soloEjercicios: '%{ejercicios} ejercicios',
     soloSeries: '%{series} series',
+    hoy: 'Hoy',
+    ayer: 'Ayer',
+    haceDias: 'Hace %{count} días',
+    haceUnaSemana: 'Hace 1 semana',
+    haceSemanas: 'Hace %{count} semanas',
+    haceUnMes: 'Hace 1 mes',
+    haceMeses: 'Hace %{count} meses',
   },
 
   /** Home del alumno. */
@@ -413,10 +433,14 @@ const es = {
     agregarEjercicio: 'Agregar ejercicio',
 
     buscarSinNombre: 'Ingresá el nombre (o email) del alumno.',
-    buscarSinResultados:
-      'No encontré alumnos con ese nombre o email. Deben registrarse primero desde la app.',
-    buscarError: 'No se pudo buscar. Probá de nuevo.',
+    buscarMinimo: 'Escribí al menos 2 caracteres para buscar.',
+    buscarSinResultados: 'No encontramos alumnos con ese nombre.',
+    buscarSinResultadosEmail:
+      'No encontramos a nadie con ese email. Si todavía no tiene cuenta, que se registre primero desde la app.',
+    buscarOtroProfe: 'Ese alumno ya tiene un profe asignado.',
+    buscarError: 'No pudimos buscar. Probá de nuevo.',
     buscarHint: 'Buscá por nombre y apellido (o email).',
+    yaEsTuAlumno: 'Ya es tu alumno',
     alumnoAsignado: '%{nombre} ahora es tu alumno.',
     asignarError: 'No se pudo asignar. Puede que ya tenga otro profe asignado.',
     panelProfe: 'Panel del profe',
@@ -466,8 +490,35 @@ const es = {
     borrarTip: 'Borrar tip',
 
     /** Navegación del panel (sidebar) y títulos de sección. */
+    navPanel: 'Panel',
     navAlumnos: 'Alumnos',
     masAlumnos: '%{count} más',
+
+    /** Dashboard del panel: seguir donde quedamos, atención, actividad y semana. */
+    dashboardSubtitulo: 'Tus alumnos, sus rutinas y la actividad de la semana.',
+    seguirTitulo: 'Seguir donde quedamos',
+    seguirCta: 'Continuar',
+    seguirSinRutina: 'Todavía no armaste ninguna rutina.',
+    primerAlumnoTitulo: 'Armá la primera rutina',
+    primerAlumnoTexto: '%{nombre} todavía no tiene rutina. Es un buen punto de partida.',
+    primerAlumnoCta: 'Armar rutina',
+    atencionTitulo: 'Necesitan atención',
+    atencionTotal: 'Necesitan atención (%{count})',
+    atencionSinRutina: 'Todavía sin rutina',
+    atencionInactivo: 'Sin entrenar hace %{count} días',
+    atencionInactivoUna: 'Sin entrenar hace 1 día',
+    atencionRutinaVieja: 'Rutina sin cambios hace %{count} días',
+    atencionRutinaViejaUna: 'Rutina sin cambios hace 1 día',
+    atencionVerTodos: 'Ver todos',
+    atencionTodoOk: 'Todos tus alumnos al día.',
+    actividadTitulo: 'Actividad reciente',
+    actividadSinBloque: 'Entrenamiento',
+    actividadVacio: 'Todavía no hay entrenamientos registrados.',
+    semanaTitulo: 'Esta semana',
+    statEntrenamientos: 'Entrenamientos',
+    statAlumnosActivos: 'Alumnos activos',
+    statAlumnos: 'Alumnos',
+    statSinRutina: 'Sin rutina',
 
     /** Panel de parámetros por ejercicio (series / reps / descanso / peso). */
     parametrosEjercicio: 'Parámetros del ejercicio',
@@ -543,6 +594,98 @@ const es = {
     tiempo: 'Tiempo',
     completo: 'Completo',
     conTiempo: '%{conTiempo} de %{total} entrenamientos con tiempo registrado por el reloj.',
+  },
+
+  /**
+   * Consentimiento de datos de salud y aceptación de la Política de Privacidad.
+   *
+   * Los textos de salud son datos sensibles (Ley 25.326): el consentimiento es
+   * libre, expreso e informado, nunca viene pre-tildado, y quien no lo da puede
+   * seguir usando la app.
+   */
+  consentimiento: {
+    saludLabel:
+      'Acepto que se guarden mis datos de salud (enfermedades y lesiones) para que mi profe pueda armarme una rutina adecuada. Solo los ve mi profe asignado y puedo borrarlos o retirar este consentimiento cuando quiera.',
+    saludRequerido:
+      'Para guardar enfermedades o lesiones, primero tenés que aceptar el consentimiento de datos de salud.',
+    politicaLabel: 'Leí y acepto la Política de Privacidad',
+    politicaRequerida: 'Para continuar tenés que aceptar la Política de Privacidad.',
+    verPolitica: 'Política de Privacidad',
+
+    estadoOtorgado: 'Consentimiento de datos de salud: otorgado el %{fecha}',
+    estadoRetirado: 'Consentimiento de datos de salud: retirado el %{fecha}',
+    estadoSinOtorgar: 'Consentimiento de datos de salud: sin otorgar',
+    retirar: 'Retirar consentimiento',
+    retirarTitulo: 'Retirar consentimiento',
+    retirarMensaje:
+      'Si retirás el consentimiento, tus enfermedades y lesiones se van a borrar. Para volver a cargarlas, tenés que aceptar de nuevo.',
+    retiradoOk: 'Consentimiento retirado. Tus datos de salud se borraron.',
+
+    pantallaTitulo: 'Cambios en el uso de tus datos de salud',
+    pantallaTexto:
+      'Tus enfermedades y lesiones son datos de salud. Para seguir guardándolos necesitamos tu consentimiento expreso. Si aceptás, los mantenemos y seguís igual. Si no aceptás, los borramos y podés seguir usando la app.',
+    pantallaPrivacidad: 'Leé la Política de Privacidad',
+    aceptar: 'Acepto y mantengo mis datos',
+    rechazar: 'No acepto, borrar mis datos',
+    rechazarTitulo: 'Borrar datos de salud',
+    rechazarMensaje:
+      'Si no aceptás, vamos a borrar tus enfermedades y lesiones. Vas a seguir usando la app con normalidad.',
+    seguir: 'Seguir',
+    errorAceptar: 'No pudimos registrar tu consentimiento. Probá de nuevo.',
+    errorRetirar: 'No pudimos retirar el consentimiento. Probá de nuevo.',
+  },
+
+  /**
+   * Política de Privacidad (pantalla pública `/privacidad`).
+   *
+   * Es un BORRADOR: todo dato legal se deja como [COMPLETAR]. No afirma que la
+   * base esté inscripta ante el Registro Nacional de Bases de Datos Personales.
+   */
+  privacidad: {
+    titulo: 'Política de Privacidad',
+    volver: 'Volver',
+    version: 'Versión %{version}',
+    borrador: 'Borrador pendiente de revisión legal.',
+
+    s1Titulo: 'Responsable del tratamiento',
+    s1Texto:
+      'El responsable del tratamiento de tus datos personales es [COMPLETAR: nombre o razón social], con domicilio en [COMPLETAR: domicilio legal].',
+
+    s2Titulo: 'Qué datos se recolectan',
+    s2Texto:
+      'Datos de cuenta: nombre, email y, si los cargás, nombre de usuario, sexo e idioma. Datos del cuestionario: fecha de nacimiento, peso, altura, objetivo y nivel de experiencia. Datos de salud: enfermedades y lesiones, que son datos sensibles y solo se tratan con tu consentimiento expreso. Datos de uso: entrenamientos registrados y medidas corporales que cargues.',
+
+    s3Titulo: 'Para qué se usan',
+    s3Texto:
+      'Usamos tus datos para crear y gestionar tu cuenta, que tu profe asignado pueda armar y ajustar tu rutina, registrar tu progreso y comunicarnos con vos. Los datos de salud se usan únicamente para que tu profe adapte la rutina a tu situación.',
+
+    s4Titulo: 'Quién puede verlos',
+    s4Texto:
+      'Tus datos de cuenta y de uso los ves vos y tu profe asignado. Los datos de salud los ve únicamente tu profe asignado. No vendemos ni cedemos tus datos a terceros; el proveedor de infraestructura los almacena por nosotros.',
+
+    s5Titulo: 'Dónde se almacenan',
+    s5Texto:
+      'Los datos se almacenan en Supabase, con servidores ubicados fuera de la Argentina. [COMPLETAR si corresponde: región del servidor y proveedor de infraestructura.]',
+
+    s6Titulo: 'Por cuánto tiempo',
+    s6Texto:
+      'Conservamos tus datos mientras tu cuenta esté activa. [COMPLETAR: plazo concreto de conservación y criterio de borrado.]',
+
+    s7Titulo: 'Tus derechos',
+    s7Texto:
+      'Como titular de los datos tenés derecho a acceder a ellos, rectificarlos, actualizarlos y suprimirlos (arts. 14 y 16, Ley 25.326). También podés retirar en cualquier momento el consentimiento para el tratamiento de tus datos de salud, sin que eso afecte el uso del resto de la app.',
+
+    s8Titulo: 'Cómo ejercerlos',
+    s8Texto:
+      'Para ejercer tus derechos escribí a [COMPLETAR: email de contacto]. También podés retirar el consentimiento de datos de salud desde la app, en Mis datos.',
+
+    s9Titulo: 'Contacto',
+    s9Texto: 'Contacto: [COMPLETAR: email]. [COMPLETAR: domicilio si corresponde.]',
+    registro:
+      'Inscripción en el Registro Nacional de Bases de Datos Personales: [COMPLETAR si corresponde]. Esta política no afirma que la base esté inscripta.',
+
+    idiomaEs: 'Español',
+    idiomaEn: 'English',
   },
 
   /** Etiquetas de los niveles, compartidas entre el cuestionario y la ficha. */

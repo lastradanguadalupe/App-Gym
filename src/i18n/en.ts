@@ -97,6 +97,7 @@ const en: Traducciones = {
     /** Errors we write ourselves in Postgres with `raise exception`. */
     soloProfeBuscaAlumnos: 'Only a trainer can search for students.',
     soloProfeAsignaAlumnos: 'Only a trainer can assign themselves students.',
+    alumnoYaTieneProfe: 'That student already has a trainer assigned.',
     soloProfeListaStaff: 'Only a trainer can view the staff list.',
     soloProfeHabilitaStaff: 'Only a trainer can grant staff access.',
     soloProfeQuitaStaff: 'Only a trainer can revoke staff access.',
@@ -107,6 +108,8 @@ const en: Traducciones = {
     grupoMuscularConEjercicios:
       'This muscle group has exercises assigned. Delete or reassign them first.',
     ejercicioEnUso: 'This exercise is used by at least one routine. Remove it from the routines first.',
+    consentimientoSaludRequerido:
+      'Health data cannot be saved without an active consent.',
   },
 
   region: {
@@ -163,6 +166,14 @@ const en: Traducciones = {
     historialDetalle: 'Your workouts',
     avance: 'Your progress',
     paraArmarRutina: 'Fill in these details so your trainer can build your routine.',
+
+    // Trainer profile (`/cuenta`).
+    datosPersonales: 'Personal details',
+    profeSubtitulo: 'Your information as a trainer.',
+    aniosExperiencia: 'Years of experience',
+    aniosExperienciaPlaceholder: 'Ex: 5',
+    experienciaInvalida: 'Enter a number between 0 and 60.',
+    ajustesCuenta: 'Account settings',
     edadAnios: 'Age: %{edad} years',
     fechaNacimiento: 'Date of birth',
     objetivo: 'Goal',
@@ -233,6 +244,8 @@ const en: Traducciones = {
     nombreActualizado: 'Name updated.',
     nombreVacio: 'The name cannot be empty.',
     sinDefinir: 'Not set',
+    politicaPrivacidad: 'Privacy Policy',
+    privacidadSeccion: 'Privacy',
   },
 
   medidas: {
@@ -273,6 +286,13 @@ const en: Traducciones = {
     ejerciciosSeries: '%{ejercicios} exercises · %{series} sets',
     soloEjercicios: '%{ejercicios} exercises',
     soloSeries: '%{series} sets',
+    hoy: 'Today',
+    ayer: 'Yesterday',
+    haceDias: '%{count} days ago',
+    haceUnaSemana: '1 week ago',
+    haceSemanas: '%{count} weeks ago',
+    haceUnMes: '1 month ago',
+    haceMeses: '%{count} months ago',
   },
 
   inicio: {
@@ -371,10 +391,14 @@ const en: Traducciones = {
     agregarEjercicio: 'Add exercise',
 
     buscarSinNombre: 'Enter the name (or email) of the student.',
-    buscarSinResultados:
-      'No students found with that name or email. They have to sign up in the app first.',
+    buscarMinimo: 'Type at least 2 characters to search.',
+    buscarSinResultados: 'No students found with that name.',
+    buscarSinResultadosEmail:
+      'No one found with that email. If they do not have an account yet, they need to sign up in the app first.',
+    buscarOtroProfe: 'That student already has a trainer assigned.',
     buscarError: 'Could not search. Please try again.',
     buscarHint: 'Search by first and last name (or email).',
+    yaEsTuAlumno: 'Already your student',
     alumnoAsignado: '%{nombre} is now your student.',
     asignarError: 'Could not assign. They may already have another trainer.',
     panelProfe: 'Trainer dashboard',
@@ -423,8 +447,35 @@ const en: Traducciones = {
     borrarTip: 'Delete tip',
 
     /** Dashboard navigation (sidebar) and section titles. */
+    navPanel: 'Dashboard',
     navAlumnos: 'Students',
     masAlumnos: '%{count} more',
+
+    /** Dashboard: continue, attention, recent activity and the week. */
+    dashboardSubtitulo: 'Your students, their routines and the week activity.',
+    seguirTitulo: 'Pick up where we left off',
+    seguirCta: 'Continue',
+    seguirSinRutina: 'You have not built a routine yet.',
+    primerAlumnoTitulo: 'Build the first routine',
+    primerAlumnoTexto: '%{nombre} does not have a routine yet. A good place to start.',
+    primerAlumnoCta: 'Build routine',
+    atencionTitulo: 'Need attention',
+    atencionTotal: 'Need attention (%{count})',
+    atencionSinRutina: 'No routine yet',
+    atencionInactivo: 'No training for %{count} days',
+    atencionInactivoUna: 'No training for 1 day',
+    atencionRutinaVieja: 'Routine unchanged for %{count} days',
+    atencionRutinaViejaUna: 'Routine unchanged for 1 day',
+    atencionVerTodos: 'View all',
+    atencionTodoOk: 'All your students are on track.',
+    actividadTitulo: 'Recent activity',
+    actividadSinBloque: 'Workout',
+    actividadVacio: 'No workouts recorded yet.',
+    semanaTitulo: 'This week',
+    statEntrenamientos: 'Workouts',
+    statAlumnosActivos: 'Active students',
+    statAlumnos: 'Students',
+    statSinRutina: 'No routine',
 
     /** Per-exercise parameter panel (sets / reps / rest / weight). */
     parametrosEjercicio: 'Exercise parameters',
@@ -496,6 +547,98 @@ const en: Traducciones = {
     tiempo: 'Time',
     completo: 'Complete',
     conTiempo: '%{conTiempo} of %{total} workouts with time recorded by the timer.',
+  },
+
+  /**
+   * Health data consent and Privacy Policy acceptance.
+   *
+   * Health data is sensitive (Argentine Law 25.326): consent is free, express
+   * and informed, is never pre-checked, and whoever declines can keep using the
+   * app.
+   */
+  consentimiento: {
+    saludLabel:
+      'I agree that my health data (conditions and injuries) may be stored so my trainer can build a suitable routine for me. Only my assigned trainer can see it, and I can delete it or withdraw this consent at any time.',
+    saludRequerido:
+      'To save conditions or injuries, you first need to accept the health data consent.',
+    politicaLabel: 'I have read and accept the Privacy Policy',
+    politicaRequerida: 'To continue you have to accept the Privacy Policy.',
+    verPolitica: 'Privacy Policy',
+
+    estadoOtorgado: 'Health data consent: granted on %{fecha}',
+    estadoRetirado: 'Health data consent: withdrawn on %{fecha}',
+    estadoSinOtorgar: 'Health data consent: not granted',
+    retirar: 'Withdraw consent',
+    retirarTitulo: 'Withdraw consent',
+    retirarMensaje:
+      'If you withdraw consent, your conditions and injuries will be deleted. To load them again, you have to accept once more.',
+    retiradoOk: 'Consent withdrawn. Your health data was deleted.',
+
+    pantallaTitulo: 'Changes in how we use your health data',
+    pantallaTexto:
+      'Your conditions and injuries are health data. To keep storing them we need your express consent. If you accept, we keep them and you continue as usual. If you do not, we delete them and you can keep using the app.',
+    pantallaPrivacidad: 'Read the Privacy Policy',
+    aceptar: 'I accept and keep my data',
+    rechazar: 'I do not accept, delete my data',
+    rechazarTitulo: 'Delete health data',
+    rechazarMensaje:
+      'If you do not accept, we will delete your conditions and injuries. You will keep using the app as usual.',
+    seguir: 'Continue',
+    errorAceptar: 'We could not record your consent. Please try again.',
+    errorRetirar: 'We could not withdraw the consent. Please try again.',
+  },
+
+  /**
+   * Privacy Policy (public screen `/privacidad`).
+   *
+   * It is a DRAFT: any legal fact is left as [COMPLETAR]. It does not claim the
+   * database is registered with the National Registry of Personal Databases.
+   */
+  privacidad: {
+    titulo: 'Privacy Policy',
+    volver: 'Back',
+    version: 'Version %{version}',
+    borrador: 'Draft pending legal review.',
+
+    s1Titulo: 'Data controller',
+    s1Texto:
+      'The controller of your personal data is [COMPLETAR: name or legal entity], with address at [COMPLETAR: legal address].',
+
+    s2Titulo: 'What data is collected',
+    s2Texto:
+      'Account data: name, email and, if you provide them, username, sex and language. Questionnaire data: date of birth, weight, height, goal and experience level. Health data: conditions and injuries, which are sensitive and are only processed with your express consent. Usage data: logged workouts and body measurements you enter.',
+
+    s3Titulo: 'What they are used for',
+    s3Texto:
+      'We use your data to create and manage your account, let your assigned trainer build and adjust your routine, record your progress and communicate with you. Health data is used only so your trainer can adapt the routine to your situation.',
+
+    s4Titulo: 'Who can see them',
+    s4Texto:
+      'Your account and usage data are visible to you and your assigned trainer. Health data is visible only to your assigned trainer. We do not sell or share your data with third parties; the infrastructure provider stores it for us.',
+
+    s5Titulo: 'Where they are stored',
+    s5Texto:
+      'Data is stored in Supabase, with servers located outside Argentina. [COMPLETAR if applicable: server region and infrastructure provider.]',
+
+    s6Titulo: 'For how long',
+    s6Texto:
+      'We keep your data as long as your account is active. [COMPLETAR: specific retention period and deletion criteria.]',
+
+    s7Titulo: 'Your rights',
+    s7Texto:
+      'As the data subject you have the right to access, rectify, update and delete your data (sections 14 and 16, Law 25.326). You may also withdraw consent for the processing of your health data at any time, without that affecting your use of the rest of the app.',
+
+    s8Titulo: 'How to exercise them',
+    s8Texto:
+      'To exercise your rights, write to [COMPLETAR: contact email]. You can also withdraw health data consent from the app, in My data.',
+
+    s9Titulo: 'Contact',
+    s9Texto: 'Contact: [COMPLETAR: email]. [COMPLETAR: address if applicable.]',
+    registro:
+      'Registration with the National Registry of Personal Databases: [COMPLETAR if applicable]. This policy does not claim the database is registered.',
+
+    idiomaEs: 'Español',
+    idiomaEn: 'English',
   },
 
   experiencia: {

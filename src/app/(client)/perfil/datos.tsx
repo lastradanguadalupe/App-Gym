@@ -1,9 +1,11 @@
 import { useEffect, useState } from 'react';
 import { StyleSheet, View } from 'react-native';
+import { router } from 'expo-router';
 
 import { ThemedText } from '@/components/themed-text';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
+import { Checkbox } from '@/components/ui/checkbox';
 import { Chip } from '@/components/ui/chip';
 import { DateField } from '@/components/ui/date-field';
 import { HeightField, SexoField, WeightField } from '@/components/ui/body-fields';
@@ -12,8 +14,14 @@ import { Screen, Section } from '@/components/ui/screen';
 import { Spacing } from '@/constants/theme';
 import { useI18n } from '@/context/i18n';
 import { useSession } from '@/context/session';
-import { fetchProfile, upsertClientDetails } from '@/lib/db';
-import { computeEdad, parseTags } from '@/lib/format';
+import {
+  fetchProfile,
+  recordConsent,
+  upsertClientDetails,
+  withdrawHealthConsent,
+} from '@/lib/db';
+import { computeEdad, formatDate, parseTags } from '@/lib/format';
+import { hasActiveHealthConsent } from '@/lib/legal';
 import { t } from '@/i18n';
 import type { Experiencia, Profile, Sexo } from '@/types';
 
@@ -41,7 +49,7 @@ function experienciaLabel(value: Experiencia): string {
 
 export default function MisDatosScreen() {
   const { locale } = useI18n();
-  const { session, profile, clientDetails, refreshProfile } = useSession();
+  const { session, profile, clientDetails, healthConsent, refreshProfile } = useSession();
 
   const [fechaNacimiento, setFechaNacimiento] = useState<string | null>(null);
   const [sexo, setSexo] = useState<Sexo | null>(null);
@@ -52,9 +60,17 @@ export default function MisDatosScreen() {
   const [lesiones, setLesiones] = useState('');
   const [experiencia, setExperiencia] = useState<Experiencia | null>(null);
   const [profe, setProfe] = useState<Profile | null>(null);
+  // Consentimiento de salud tildado en ESTA edición (nunca pre-tildado).
+  const [healthConsentAck, setHealthConsentAck] = useState(false);
+  const [confirmingWithdraw, setConfirmingWithdraw] = useState(false);
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+
+  const activeHealthConsent = hasActiveHealthConsent(healthConsent);
+  const enfermedadesTags = parseTags(enfermedades);
+  const lesionesTags = parseTags(lesiones);
+  const hasHealthInput = enfermedadesTags.length > 0 || lesionesTags.length > 0;
 
   useEffect(() => {
     if (!profile?.profe_id) {
@@ -91,24 +107,55 @@ export default function MisDatosScreen() {
 
   async function handleSave() {
     if (!uid) return;
+    // Si hay datos de salud y no hay consentimiento vigente, el checkbox es
+    // obligatorio. Con consentimiento ya otorgado no se vuelve a pedir.
+    if (hasHealthInput && !activeHealthConsent && !healthConsentAck) {
+      setMessage(null);
+      setError(t('consentimiento.saludRequerido'));
+      return;
+    }
     setSaving(true);
     setMessage(null);
     setError(null);
     try {
+      if (hasHealthInput && !activeHealthConsent) {
+        await recordConsent(uid, 'health_data', true);
+        setHealthConsentAck(false);
+      }
       await upsertClientDetails(uid, {
         fecha_nacimiento: fechaNacimiento,
         sexo,
         altura_cm: altura,
         peso_kg: peso,
         objetivo: objetivo.trim() || null,
-        enfermedades: parseTags(enfermedades),
-        lesiones: parseTags(lesiones),
+        enfermedades: enfermedadesTags,
+        lesiones: lesionesTags,
         experiencia,
       });
       await refreshProfile();
       setMessage(t('perfil.cambiosGuardados'));
     } catch (e) {
       setError(t('perfil.noSePudieronGuardar'));
+      console.warn(e);
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  async function handleWithdraw() {
+    if (!uid) return;
+    setSaving(true);
+    setMessage(null);
+    setError(null);
+    try {
+      await withdrawHealthConsent();
+      setEnfermedades('');
+      setLesiones('');
+      setConfirmingWithdraw(false);
+      await refreshProfile();
+      setMessage(t('consentimiento.retiradoOk'));
+    } catch (e) {
+      setError(t('consentimiento.errorRetirar'));
       console.warn(e);
     } finally {
       setSaving(false);
@@ -175,6 +222,68 @@ export default function MisDatosScreen() {
             hint={t('onboarding.lesionesHint')}
           />
 
+          {/* Consentimiento de salud: solo se pide cuando hay datos que guardar
+              y todavía no hay uno vigente. */}
+          {hasHealthInput && !activeHealthConsent ? (
+            <Checkbox
+              checked={healthConsentAck}
+              onChange={setHealthConsentAck}
+              label={t('consentimiento.saludLabel')}
+              linkLabel={t('consentimiento.verPolitica')}
+              onLinkPress={() => router.push('/privacidad')}
+              testID="health-checkbox"
+            />
+          ) : null}
+
+          {healthConsent ? (
+            <View style={styles.consentBox}>
+              <ThemedText type="small" themeColor="textSecondary">
+                {healthConsent.granted
+                  ? t('consentimiento.estadoOtorgado', {
+                      fecha: formatDate(healthConsent.created_at, locale),
+                    })
+                  : t('consentimiento.estadoRetirado', {
+                      fecha: formatDate(healthConsent.created_at, locale),
+                    })}
+              </ThemedText>
+
+              {healthConsent.granted ? (
+                confirmingWithdraw ? (
+                  <>
+                    <ThemedText type="small" themeColor="textSecondary">
+                      {t('consentimiento.retirarMensaje')}
+                    </ThemedText>
+                    <View style={styles.row}>
+                      <Button
+                        variant="outline"
+                        label={t('common.cancelar')}
+                        onPress={() => setConfirmingWithdraw(false)}
+                        disabled={saving}
+                      />
+                      <Button
+                        variant="danger"
+                        label={t('consentimiento.retirar')}
+                        onPress={handleWithdraw}
+                        loading={saving}
+                      />
+                    </View>
+                  </>
+                ) : (
+                  <Button
+                    variant="outline"
+                    label={t('consentimiento.retirar')}
+                    icon="shield-off-outline"
+                    onPress={() => {
+                      setMessage(null);
+                      setError(null);
+                      setConfirmingWithdraw(true);
+                    }}
+                  />
+                )
+              ) : null}
+            </View>
+          ) : null}
+
           <View style={styles.group}>
             <ThemedText type="smallBold" themeColor="textSecondary">
               {t('perfil.experiencia')}
@@ -208,4 +317,5 @@ export default function MisDatosScreen() {
 const styles = StyleSheet.create({
   group: { gap: Spacing.md, paddingTop: Spacing.one },
   row: { flexDirection: 'row', gap: Spacing.two, flexWrap: 'wrap' },
+  consentBox: { gap: Spacing.two },
 });

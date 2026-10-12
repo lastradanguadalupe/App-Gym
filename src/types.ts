@@ -41,6 +41,22 @@ export interface ClientDetails {
   updated_at: string;
 }
 
+/**
+ * Una fila de `profe_details`: datos personales del entrenador.
+ *
+ * Vive aparte de `client_details` a propósito. Esa tabla es el cuestionario del
+ * socio y su RLS deja que el profe asignado la lea; los datos del profe no los
+ * tiene que ver nadie más que él.
+ */
+export interface ProfeDetails {
+  user_id: string;
+  fecha_nacimiento: string | null;
+  sexo: Sexo | null;
+  anios_experiencia: number | null;
+  created_at: string;
+  updated_at: string;
+}
+
 /** Una fila de `medidas_corporales`: un punto del gráfico de evolución. */
 export interface MedidaCorporal {
   id: number;
@@ -49,6 +65,23 @@ export interface MedidaCorporal {
   peso_kg: number;
   altura_cm: number | null;
   creado_en: string;
+}
+
+/** Tipos de consentimiento que registra la app. */
+export type ConsentType = 'privacy_policy' | 'health_data';
+
+/**
+ * Una fila de `consents`. Es un historial de solo agregar: cada aceptación o
+ * retiro es una fila nueva, y el estado vigente es la última por
+ * (`user_id`, `type`) ordenada por `created_at` e `id`.
+ */
+export interface Consent {
+  id: number;
+  user_id: string;
+  type: ConsentType;
+  policy_version: string;
+  granted: boolean;
+  created_at: string;
 }
 
 export interface MuscleGroup {

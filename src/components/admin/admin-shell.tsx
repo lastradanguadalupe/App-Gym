@@ -9,16 +9,17 @@ import { Radius, Shadows, Spacing, type ThemeColor } from '@/constants/theme';
 import { useI18n } from '@/context/i18n';
 import { useSession } from '@/context/session';
 import { countAlumnos, fetchAlumnos } from '@/lib/db';
+import {
+  DRAWER_WIDTH,
+  SIDEBAR_COLLAPSED_WIDTH,
+  SIDEBAR_WIDTH,
+  sidebarMode,
+} from '@/lib/admin-layout';
 import { useTheme } from '@/hooks/use-theme';
 import { t, type TranslationKey } from '@/i18n';
 
 type IconName = React.ComponentProps<typeof MaterialCommunityIcons>['name'];
 
-/** Ancho mínimo a partir del cual el sidebar queda fijo y se puede colapsar. */
-const WIDE_BREAKPOINT = 900;
-const SIDEBAR_WIDTH = 264;
-const SIDEBAR_COLLAPSED_WIDTH = 76;
-const DRAWER_WIDTH = 280;
 /** Cuántos alumnos se listan como sub-ítems antes del "y N más". */
 const SUBITEM_LIMIT = 8;
 const COLLAPSED_KEY = 'admin.sidebar.collapsed';
@@ -33,11 +34,18 @@ type Section = {
 
 const SECTIONS: Section[] = [
   {
-    key: 'alumnos',
+    key: 'panel',
     href: '/panel',
+    labelKey: 'admin.navPanel',
+    icon: 'view-dashboard-outline',
+    isActive: (p) => p === '/panel',
+  },
+  {
+    key: 'alumnos',
+    href: '/alumnos',
     labelKey: 'admin.navAlumnos',
     icon: 'account-group-outline',
-    isActive: (p) => p === '/panel' || p.startsWith('/alumno'),
+    isActive: (p) => p === '/alumnos' || p.startsWith('/alumno'),
   },
   {
     key: 'ejercicios',
@@ -65,8 +73,9 @@ const SECTIONS: Section[] = [
  *  - angosto: sidebar oculto, la hamburguesa lo abre como drawer con fondo
  *    oscurecido que lo cierra al tocar afuera.
  *
- * Las pantallas (`panel`, `ejercicios`, `contenido`, `alumno/[id]`) y su lógica
- * siguen siendo las mismas: esto solo cambia el marco.
+ * Las pantallas (`panel`, `alumnos`, `ejercicios`, `contenido`, `alumno/[id]`,
+ * `cuenta`) y su lógica siguen siendo las mismas: esto solo cambia el marco.
+ * Las medidas y el corte entre fijo/drawer viven en `lib/admin-layout`.
  */
 export function AdminShell() {
   const theme = useTheme();
@@ -76,7 +85,7 @@ export function AdminShell() {
   // Títulos y etiquetas del nav cambian con el idioma.
   useI18n();
 
-  const wide = width >= WIDE_BREAKPOINT;
+  const wide = sidebarMode(width) === 'fixed';
   const [collapsed, setCollapsed] = useState(false);
   const [drawerOpen, setDrawerOpen] = useState(false);
 
@@ -140,10 +149,18 @@ export function AdminShell() {
               />
             ),
           }}>
-          <Stack.Screen name="panel" options={{ title: t('admin.misAlumnos') }} />
+          <Stack.Screen name="panel" options={{ title: t('admin.navPanel') }} />
+          <Stack.Screen name="alumnos" options={{ title: t('admin.misAlumnos') }} />
           <Stack.Screen name="alumno/[id]" options={{ title: t('admin.alumno') }} />
           <Stack.Screen name="ejercicios" options={{ title: t('admin.ejerciciosTitulo') }} />
           <Stack.Screen name="contenido" options={{ title: t('admin.contenido') }} />
+          <Stack.Screen name="cuenta" options={{ title: t('perfil.tuPerfil') }} />
+          <Stack.Screen name="cuenta/ajustes/index" options={{ title: t('ajustes.title') }} />
+          <Stack.Screen name="cuenta/ajustes/email" options={{ title: t('ajustes.email') }} />
+          <Stack.Screen name="cuenta/ajustes/password" options={{ title: t('ajustes.contrasena') }} />
+          <Stack.Screen name="cuenta/ajustes/nombre" options={{ title: t('ajustes.nombreCompleto') }} />
+          <Stack.Screen name="cuenta/ajustes/usuario" options={{ title: t('ajustes.nombreUsuario') }} />
+          <Stack.Screen name="cuenta/ajustes/idioma" options={{ title: t('ajustes.idioma') }} />
         </Stack>
       </View>
 
@@ -267,8 +284,16 @@ function AdminSidebar({
         collapsed ? styles.sidebarCollapsed : styles.sidebarExpanded,
         { backgroundColor: theme.surface, borderColor: theme.border },
       ]}>
-      {/* Marca + profe */}
-      <View style={[styles.brand, collapsed && styles.brandCollapsed]}>
+      {/* Marca + profe: toca para abrir el perfil (`/cuenta`). */}
+      <Pressable
+        onPress={() => go('/cuenta')}
+        accessibilityRole="button"
+        accessibilityLabel={t('perfil.tuPerfil')}
+        style={({ pressed }) => [
+          styles.brand,
+          collapsed && styles.brandCollapsed,
+          pressed && styles.pressed,
+        ]}>
         <View
           style={[
             styles.brandMark,
@@ -284,7 +309,7 @@ function AdminSidebar({
             </ThemedText>
           </View>
         ) : null}
-      </View>
+      </Pressable>
 
       <ScrollView
         style={styles.nav}
@@ -343,7 +368,7 @@ function AdminSidebar({
                   })}
                   {loaded && total > SUBITEM_LIMIT ? (
                     <Pressable
-                      onPress={() => go('/panel')}
+                      onPress={() => go('/alumnos')}
                       style={({ pressed }) => [styles.subItem, pressed && styles.pressed]}>
                       <ThemedText type="small" themeColor="brandBright">
                         {t('admin.masAlumnos', { count: total - SUBITEM_LIMIT })}

@@ -1,5 +1,5 @@
 import { supabase } from '@/lib/supabase';
-import type { ClientDetails, Idioma, Profile } from '@/types';
+import type { ClientDetails, Idioma, Profile, ProfeDetails } from '@/types';
 
 import { dataOrThrow } from './shared';
 
@@ -81,6 +81,30 @@ export async function upsertClientDetails(uid: string, input: ClientDetailsInput
   }
 }
 
+// ---------- Datos del profe ----------
+
+export type ProfeDetailsInput = Partial<
+  Omit<ProfeDetails, 'user_id' | 'created_at' | 'updated_at'>
+>;
+
+/** Datos personales del profe (fecha de nacimiento, sexo, años de experiencia). */
+export async function fetchProfeDetails(uid: string): Promise<ProfeDetails | null> {
+  const res = await supabase.from('profe_details').select('*').eq('user_id', uid).maybeSingle();
+  if (res.error) throw res.error;
+  return (res.data as ProfeDetails | null) ?? null;
+}
+
+export async function upsertProfeDetails(uid: string, input: ProfeDetailsInput): Promise<void> {
+  const existing = await fetchProfeDetails(uid);
+  if (existing) {
+    const res = await supabase.from('profe_details').update(input).eq('user_id', uid);
+    if (res.error) throw res.error;
+  } else {
+    const res = await supabase.from('profe_details').insert({ user_id: uid, ...input });
+    if (res.error) throw res.error;
+  }
+}
+
 // ---------- Alumnos del profe ----------
 
 /** Alumnos asignados al profe (nunca el directorio global). Paginado. */
@@ -138,11 +162,38 @@ export async function fetchStudentStats(profeId: string): Promise<Record<string,
   );
 }
 
-/** Búsqueda por nombre (y apellido) o email para asignar un alumno nuevo (RPC, solo profe). */
-export async function searchClients(query: string): Promise<Pick<Profile, 'id' | 'email' | 'name'>[]> {
+/** Resultado del buscador de alumnos del panel del profe. */
+export type ClientSearchResult = Pick<Profile, 'id' | 'email' | 'name'> & {
+  /** true si el alumno ya está asignado a este profe. */
+  is_mine: boolean;
+};
+
+/**
+ * Búsqueda por nombre (y apellido) o email para asignar un alumno nuevo (RPC, solo profe).
+ *
+ * El alcance lo define el servidor: solo devuelve alumnos sin profe asignado
+ * o que ya son de este profe, nunca los de otro. La coincidencia ignora
+ * mayúsculas y tildes, y el servidor exige un mínimo de 2 caracteres.
+ */
+export async function searchClients(query: string): Promise<ClientSearchResult[]> {
   const res = await supabase.rpc('search_clients', { query });
   if (res.error) throw res.error;
-  return (res.data as Pick<Profile, 'id' | 'email' | 'name'>[]) ?? [];
+  return (res.data as ClientSearchResult[]) ?? [];
+}
+
+/**
+ * Estado de un email EXACTO para distinguir "no existe" de "es de otro profe".
+ *
+ * Se llama solo cuando `searchClients` devolvió vacío con una búsqueda que
+ * parece un email. No expone datos: solo devuelve un estado.
+ */
+export async function searchClientsStatus(
+  query: string
+): Promise<'mine' | 'other' | 'none'> {
+  const res = await supabase.rpc('search_clients_status', { query });
+  if (res.error) throw res.error;
+  const value = res.data as string | null;
+  return value === 'mine' || value === 'other' ? value : 'none';
 }
 
 export async function assignProfe(target: string): Promise<void> {

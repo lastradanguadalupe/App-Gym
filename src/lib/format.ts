@@ -97,6 +97,38 @@ export function formatMinutes(locale: Idioma, min: number | null): string {
     : tIn(locale, 'format.horas', { h });
 }
 
+/**
+ * Tiempo relativo para fechas recientes: "Hoy", "Ayer", "Hace 3 días", "Hace 2
+ * semanas", "Hace 5 meses". Se usa en el dashboard del profe ("seguir donde
+ * quedamos", actividad reciente).
+ *
+ * Se mide por bloques de 24 h transcurridas, no por día de calendario: alcanza
+ * para el uso (qué tan reciente es) y evita depender del huso al parsear un
+ * timestamptz.
+ */
+export function formatRelativeTime(locale: Idioma, iso: string | null): string {
+  if (!iso) return '—';
+  const then = new Date(iso);
+  if (Number.isNaN(then.getTime())) return '—';
+
+  const days = Math.floor(Math.max(0, Date.now() - then.getTime()) / 86_400_000);
+  if (days <= 0) return tIn(locale, 'format.hoy');
+  if (days === 1) return tIn(locale, 'format.ayer');
+  if (days < 7) return tIn(locale, 'format.haceDias', { count: days });
+
+  const weeks = Math.floor(days / 7);
+  if (weeks < 5) {
+    return weeks === 1
+      ? tIn(locale, 'format.haceUnaSemana')
+      : tIn(locale, 'format.haceSemanas', { count: weeks });
+  }
+
+  const months = Math.floor(days / 30);
+  return months <= 1
+    ? tIn(locale, 'format.haceUnMes')
+    : tIn(locale, 'format.haceMeses', { count: months });
+}
+
 export function regionLabel(locale: Idioma, region: Region): string {
   return tIn(locale, `region.${region}`);
 }

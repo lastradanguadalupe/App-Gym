@@ -1,8 +1,10 @@
+import { router } from 'expo-router';
 import { useState } from 'react';
 import { StyleSheet, View } from 'react-native';
 
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
+import { Checkbox } from '@/components/ui/checkbox';
 import { Chip } from '@/components/ui/chip';
 import { DateField } from '@/components/ui/date-field';
 import { HeightField, SexoField, WeightField } from '@/components/ui/body-fields';
@@ -11,7 +13,7 @@ import { Screen } from '@/components/ui/screen';
 import { ThemedText } from '@/components/themed-text';
 import { useI18n } from '@/context/i18n';
 import { useSession } from '@/context/session';
-import { upsertClientDetails, upsertMedida } from '@/lib/db';
+import { recordConsent, upsertClientDetails, upsertMedida } from '@/lib/db';
 import { parseTags } from '@/lib/format';
 import { toIsoDate } from '@/lib/calendar';
 import { Spacing } from '@/constants/theme';
@@ -31,12 +33,19 @@ export default function OnboardingScreen() {
   const [enfermedades, setEnfermedades] = useState('');
   const [lesiones, setLesiones] = useState('');
   const [experiencia, setExperiencia] = useState<Experiencia | null>(null);
+  // Ninguno de los dos consentimientos viene pre-tildado.
+  const [acceptedPolicy, setAcceptedPolicy] = useState(false);
+  const [healthConsent, setHealthConsent] = useState(false);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   /** Las cuatro preguntas con selector son obligatorias: nada de valores por defecto. */
   const completo =
     fechaNacimiento != null && sexo != null && peso != null && altura != null;
+
+  const enfermedadesTags = parseTags(enfermedades);
+  const lesionesTags = parseTags(lesiones);
+  const hasHealthInput = enfermedadesTags.length > 0 || lesionesTags.length > 0;
 
   async function handleSave() {
     const uid = session?.user?.id;
@@ -46,18 +55,35 @@ export default function OnboardingScreen() {
       setError(t('onboarding.faltanDatos'));
       return;
     }
+    if (!acceptedPolicy) {
+      setError(t('consentimiento.politicaRequerida'));
+      return;
+    }
+    // Los campos de salud son opcionales: si ambos quedan vacíos no se pide el
+    // consentimiento y no se guarda nada de salud.
+    if (hasHealthInput && !healthConsent) {
+      setError(t('consentimiento.saludRequerido'));
+      return;
+    }
 
     setSaving(true);
     setError(null);
     try {
+      // Registro de aceptación general (aplica también a los registros con
+      // Google: el onboarding es lo primero que ven).
+      await recordConsent(uid, 'privacy_policy', true);
+      if (hasHealthInput) {
+        await recordConsent(uid, 'health_data', true);
+      }
+
       await upsertClientDetails(uid, {
         fecha_nacimiento: fechaNacimiento,
         sexo,
         peso_kg: peso,
         altura_cm: altura,
         objetivo: objetivo.trim() || null,
-        enfermedades: parseTags(enfermedades),
-        lesiones: parseTags(lesiones),
+        enfermedades: enfermedadesTags,
+        lesiones: lesionesTags,
         experiencia,
       });
 
@@ -94,6 +120,15 @@ export default function OnboardingScreen() {
       </ThemedText>
 
       <Card>
+        <Checkbox
+          checked={acceptedPolicy}
+          onChange={setAcceptedPolicy}
+          label={t('consentimiento.politicaLabel')}
+          linkLabel={t('consentimiento.verPolitica')}
+          onLinkPress={() => router.push('/privacidad')}
+          testID="policy-checkbox"
+        />
+
         <DateField
           label={t('perfil.fechaNacimiento')}
           value={fechaNacimiento}
@@ -144,6 +179,17 @@ export default function OnboardingScreen() {
           placeholder={t('onboarding.lesionesPlaceholder')}
           hint={t('onboarding.lesionesHint')}
         />
+
+        {hasHealthInput ? (
+          <Checkbox
+            checked={healthConsent}
+            onChange={setHealthConsent}
+            label={t('consentimiento.saludLabel')}
+            linkLabel={t('consentimiento.verPolitica')}
+            onLinkPress={() => router.push('/privacidad')}
+            testID="health-checkbox"
+          />
+        ) : null}
 
         <View style={styles.group}>
           <ThemedText type="smallBold" themeColor="textSecondary">

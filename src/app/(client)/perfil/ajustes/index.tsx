@@ -100,6 +100,16 @@ export default function AjustesScreen() {
         </ListGroup>
       </Section>
 
+      <Section title={t('ajustes.privacidadSeccion')}>
+        <ListGroup>
+          <ListRow
+            icon="shield-check-outline"
+            label={t('ajustes.politicaPrivacidad')}
+            onPress={() => router.push('/privacidad')}
+          />
+        </ListGroup>
+      </Section>
+
       <Section title={t('ajustes.sesion')}>
         <ThemedText type="small" themeColor="textSecondary">
           {t('ajustes.cerrarSesionInfo')}

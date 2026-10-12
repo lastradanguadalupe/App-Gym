@@ -12,6 +12,7 @@ import { I18nProvider, useI18n } from '@/context/i18n';
 import { SessionProvider, useSession } from '@/context/session';
 import { useTheme } from '@/hooks/use-theme';
 import { t } from '@/i18n';
+import { hasActiveHealthConsent, hasHealthData } from '@/lib/legal';
 
 SplashScreen.preventAutoHideAsync();
 
@@ -64,11 +65,22 @@ function SinPerfilScreen() {
 }
 
 function RootNavigator() {
-  const { session, profile, clientDetails, loading, profileLoading } = useSession();
+  const { session, profile, clientDetails, healthConsent, loading, profileLoading } = useSession();
 
   const isCliente = !!session && profile?.role === 'cliente';
   const isProfe = !!session && profile?.role === 'profe';
   const needsOnboarding = isCliente && !clientDetails;
+
+  /**
+   * Alumno con datos de salud guardados pero sin consentimiento vigente: pasa
+   * primero por la pantalla única de re-consentimiento. Quien no tiene datos de
+   * salud cargados no la ve, y un consentimiento ya otorgado también la saltea.
+   */
+  const needsHealthConsent =
+    isCliente &&
+    !needsOnboarding &&
+    hasHealthData(clientDetails) &&
+    !hasActiveHealthConsent(healthConsent);
 
   /**
    * El splash solo mientras NO hay perfil todavía.
@@ -98,12 +110,17 @@ function RootNavigator() {
       <Stack.Protected guard={needsOnboarding}>
         <Stack.Screen name="onboarding" />
       </Stack.Protected>
-      <Stack.Protected guard={isCliente && !needsOnboarding}>
+      <Stack.Protected guard={needsHealthConsent}>
+        <Stack.Screen name="consentimiento" />
+      </Stack.Protected>
+      <Stack.Protected guard={isCliente && !needsOnboarding && !needsHealthConsent}>
         <Stack.Screen name="(client)" />
       </Stack.Protected>
       <Stack.Protected guard={isProfe}>
         <Stack.Screen name="(admin)" />
       </Stack.Protected>
+      {/* Pantalla pública: accesible con o sin sesión, en nativo y en web. */}
+      <Stack.Screen name="privacidad" />
     </Stack>
   );
 }

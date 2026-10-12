@@ -63,6 +63,7 @@ export function friendlyError(e: unknown, fallback: TranslationKey): string {
 const RPC_MESSAGE_KEY: Record<string, TranslationKey> = {
   'Solo un profe puede buscar alumnos': 'common.soloProfeBuscaAlumnos',
   'Solo un profe puede asignarse alumnos': 'common.soloProfeAsignaAlumnos',
+  'Ese alumno ya está asignado a otro profe': 'common.alumnoYaTieneProfe',
   'Solo un profe puede ver la lista de staff': 'common.soloProfeListaStaff',
   'Solo un profe puede habilitar accesos de staff': 'common.soloProfeHabilitaStaff',
   'Solo un profe puede quitar accesos de staff': 'common.soloProfeQuitaStaff',
@@ -74,4 +75,6 @@ const RPC_MESSAGE_KEY: Record<string, TranslationKey> = {
     'common.grupoMuscularConEjercicios',
   'Este ejercicio esta en uso por al menos una rutina. Quitalo de las rutinas primero.':
     'common.ejercicioEnUso',
+  'No se pueden guardar datos de salud sin consentimiento vigente':
+    'common.consentimientoSaludRequerido',
 };
